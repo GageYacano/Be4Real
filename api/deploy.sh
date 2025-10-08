@@ -18,7 +18,7 @@ rsync -avz \
   --exclude 'node_modules' \
   --exclude '.git' \
   --exclude 'src' \
-  --exclude 'deploy.sh'
+  --exclude 'deploy.sh' \
   ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
 echo "Installing dependencies and restarting server"
