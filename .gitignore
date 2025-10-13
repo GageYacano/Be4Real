@@ -3,3 +3,4 @@ dist/
 package_lock.json
 .env
 .idea/*
+.run/*
