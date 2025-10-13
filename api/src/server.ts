@@ -14,7 +14,7 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
-
+console.log("hello")
 try {
     await client.connect();
     await client.db("Be4RealDB").command({ ping: 1 });
