@@ -8,6 +8,7 @@ interface DBUser {
     username: string;
     email: string;
     passHash: string;
+    verifCode: string;
     posts: ObjectId[];
     followers: number;
     following: number;
