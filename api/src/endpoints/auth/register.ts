@@ -13,18 +13,13 @@ interface RequestData {
 }
 
 export default async function register(req: Request, res: Response) {
-
+    
     try {
-
         let {
             username,
             email,
             password
         }: RequestData = req.body;
-
-        username = username.trim()
-        email = email.toLowerCase().trim()
-        password = password.trim()
 
         // Check for missing fields
         if (!username || !email || !password)
@@ -32,6 +27,10 @@ export default async function register(req: Request, res: Response) {
                 status: "error",
                 message: "Missing fields" 
             })
+
+        username = username.trim()
+        email = email.toLowerCase().trim()
+        password = password.trim()
         
         // Validate fields
         try {
@@ -48,7 +47,6 @@ export default async function register(req: Request, res: Response) {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const verifCode = String(randomInt(0, 1_000_000)).padStart(6, "0");
-        console.log("Verification code for " + email + ": " + verifCode); // for dev
 
         const db = await getDB()
         const usersColl = db.collection<DBUser>("users")
@@ -81,6 +79,7 @@ export default async function register(req: Request, res: Response) {
         }
 
         // TODO: send email/sms
+        console.log("Verification code for " + email + ": " + verifCode); // for dev
 
         res.status(200).json({ 
             status: "success",
@@ -89,7 +88,10 @@ export default async function register(req: Request, res: Response) {
 
     } catch (e: any) {
         console.error(e)
-        return res.status(500).json({ error: "Internal server error" })
+        res.status(500).json({ 
+            status: "error",
+            message: "Internal server error"
+        })
     }
 
 }

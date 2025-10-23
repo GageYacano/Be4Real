@@ -1,36 +1,35 @@
 
 import { Request, Response } from "express";
 import { z } from "zod";
-import bcrypt from "bcrypt"
 import { getDB } from "../../utils/mongo.js";
 import { DBUser } from "../../types/mongo_schemas.js";
 import { createJWT } from "../../utils/jwt.js";
 
 interface RequestData {
     email: string,
-    password: string
+    code: string
 }
 
-export default async function login(req: Request, res: Response) {
+export default async function verifyUser(req: Request, res: Response) {
 
     try {
         let {
             email,
-            password
+            code
         }: RequestData = req.body;
 
-        if (!email || !password)
+        if (!email || !code)
             return res.status(400).json({ 
                 status: "error",
                 message: "Missing fields" 
-            });
+            })
 
-        email = email.toLowerCase().trim();
-        password = password.trim();
+        email = email.toLowerCase().trim()
+        code = code.trim()
 
         try {
-            z.string().min(8).max(256).parse(password)
             z.email().parse(email)
+            z.string().length(6).parse(code)
         } catch (e: any) {
             console.error(e)
             return res.status(400).json({ 
@@ -39,46 +38,43 @@ export default async function login(req: Request, res: Response) {
             })
         }
 
-        // get user by email
         const db = await getDB();
+
+        // Find user
         const usersColl = db.collection<DBUser>("users");
         const user = await usersColl.findOne({ email });
-    
         if (user === null) 
-            return res.status(401).json({
+            return res.status(404).json({
                 status: "error",
-                message: "Invalid username or password"
+                message: "User not found"
             });
         
-        if (user.loginMethod !== "password")
-            return res.status(403).json({
-                status: "error",
-                message: "Incorrect login method for user",
-                needsVerification: true
-            });
-        
-        const validPassword = await bcrypt.compare(password, user.passHash ?? "");
-        if (!validPassword)
+        // Check code
+        if (user.verifCode !== code) 
             return res.status(401).json({
                 status: "error",
-                message: "Invalid username or password"
-            });
+                message: "Invalid code",
+                invalidCode: true
+            })
 
-        if (!user.verified) 
-            return res.status(403).json({
-                status: "error",
-                message: "User requires verification",
-                needsVerification: true
-            });
+        // Set user to verified
+        await usersColl.updateOne({ 
+            _id: user._id
+        }, {
+            "$set": {
+                verified: true,
+                verifCode: null
+            }
+        })
 
         // issue auth jwt
         const authToken = await createJWT(user._id.toHexString());
         return res.status(200).json({
             status: "success",
-            message: "Log in successful",
+            message: "User verified",
             token: authToken
         })
-    
+
     } catch (e: any) {
         console.error(e)
         res.status(500).json({ 
