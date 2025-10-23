@@ -7,9 +7,9 @@ interface DBUser {
     loginMethod: "password" | "google";
     username: string;
     email: string;
-    passHash: string;
+    passHash: string | null;
     verified: boolean;
-    verifCode: string;
+    verifCode: string | null;
     posts: ObjectId[];
     followers: number;
     following: number;

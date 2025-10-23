@@ -1,31 +1,46 @@
+
 import express from "express";
-import { MongoClient, ServerApiVersion } from "mongodb";
+import cors from "cors";
+import path from "path";
 import dotenv from "dotenv";
 
+// Import endpoint logic
+import register from "./endpoints/auth/register.js";
+import login from "./endpoints/auth/login.js";
+import verifyUser from "./endpoints/auth/verfiy_user.js";
+import resendVerification from "./endpoints/auth/resend_verification.js";
+
 dotenv.config();
+const WEB_DIR = path.resolve("../web");
+const PORT = 8080
 
-const uri = "mongodb+srv://root:" + process.env.MONGO_PWD + "@be4realdb.o2hgd3j.mongodb.net/?retryWrites=true&w=majority&appName=Be4RealDB";
+const app = express();
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    }
-});
-console.log("hello")
-try {
-    await client.connect();
-    await client.db("Be4RealDB").command({ ping: 1 });
+// Middleware
+app.use(cors({
+    origin: ["*"], 
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Authorization"],
+    credentials: true, // allow cookies / auth headers
+}));              
+app.use(express.json());  
 
-    const app = express();
-    app.get("/", (_req, res) => res.send("Hello Worldd!"));
+// API
+app.post("/api/auth/register", register);
+app.post("/api/auth/login", login);
+app.post("/api/auth/verify-user", verifyUser);
+app.post("/api/auth/resend-verification", resendVerification)
 
-    app.listen(3000, () => console.log("Server running on port 3000"));
+// Static site content
+app.use(express.static(WEB_DIR, { 
+    index: "index.html", 
+    extensions: ["html"] 
+}));
 
-} catch (e) {
-    console.error("Server crashed" + e);
-} finally {
-    await client.close();
-}
+app.use((_, res) => res.status(404).json({ 
+    status: "error", 
+    message: "Not found" 
+}));
+
+app.listen(PORT, () => console.log("Server running on port " + PORT));
