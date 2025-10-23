@@ -60,20 +60,21 @@ pipeline {
         stage('Install PM2 and Restart App') {
             steps {
                 sh '''
-                if ! command -v pm2 > /dev/null; then
-                    sudo npm install -g pm2
-                fi
+                    if ! command -v pm2 > /dev/null; then
+                        sudo npm install -g pm2
+                    fi
 
-                cd ${DEPLOY_DIR}
-                if pm2 list | grep -q ${PM2_NAME}; then
-                    pm2 restart ${PM2_NAME}
-                else
-                    pm2 start dist/src/server.js --name ${PM2_NAME}
-                fi
+                    cd ${DEPLOY_DIR}
+                    if pm2 list | grep -q ${PM2_NAME}; then
+                        pm2 restart ${PM2_NAME}
+                    else
+                        pm2 start dist/src/server.js --name ${PM2_NAME}
+                    fi
 
-                pm2 save
-                pm2 startup systemd -u jenkins --hp /var/lib/jenkins
-                '''
+                    pm2 save
+
+                    sudo env PATH=$PATH:/usr/bin:/usr/local/bin pm2 startup systemd -u jenkins --hp /var/lib/jenkins -u jenkins --hp /var/lib/jenkins
+                    '''
             }
         }
     }
