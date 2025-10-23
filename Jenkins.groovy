@@ -1,12 +1,11 @@
+pipeline {
     agent any
 
     environment {
         NODE_VERSION = '20'
-        SERVER_DIR = 'svr'
-        CLIENT_DIR = 'client'
-        BUILD_DIR = 'client/build'
-        DEPLOY_DIR = '/opt'
-        PM2_NAME = 'mern-app'
+        API_DIR = 'api'
+        DEPLOY_DIR = '/opt/be4real-api'
+        PM2_NAME = 'be4real-api'
         GIT_CREDENTIALS_ID = 'git'
     }
 
@@ -33,16 +32,16 @@
         stage('Install Dependencies') {
             steps {
                 sh '''
-                cd ${SERVER_DIR} && npm install
-                cd ../${CLIENT_DIR} && npm install
+                cd ${API_DIR}
+                npm install
                 '''
             }
         }
 
-        stage('Build Frontend') {
+        stage('Build API') {
             steps {
                 sh '''
-                cd ${CLIENT_DIR}
+                cd ${API_DIR}
                 npm run build
                 '''
             }
@@ -51,10 +50,9 @@
         stage('Deploy to Server') {
             steps {
                 sh '''
-                echo "Deploying build and backend to ${DEPLOY_DIR}..."
+                echo "Deploying API to ${DEPLOY_DIR}..."
                 sudo mkdir -p ${DEPLOY_DIR}
-                sudo cp -r ${SERVER_DIR}/* ${DEPLOY_DIR}/
-                sudo cp -r ${BUILD_DIR} ${DEPLOY_DIR}/public
+                sudo cp -r ${API_DIR}/* ${DEPLOY_DIR}/
                 '''
             }
         }
@@ -70,7 +68,7 @@
                 if pm2 list | grep -q ${PM2_NAME}; then
                     pm2 restart ${PM2_NAME}
                 else
-                    pm2 start server.js --name ${PM2_NAME}
+                    pm2 start dist/src/server.js --name ${PM2_NAME}
                 fi
 
                 pm2 save
