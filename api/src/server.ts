@@ -12,7 +12,7 @@ import resendVerification from "./endpoints/auth/resend_verification.js";
 
 dotenv.config();
 const WEB_DIR = path.resolve("../web");
-const PORT = 8080
+const PORT = 3000
 
 const app = express();
 
