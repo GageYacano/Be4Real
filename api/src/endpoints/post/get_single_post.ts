@@ -6,6 +6,7 @@ import {ObjectId} from "mongodb";
 
 /**
  * Gets a single post by ID
+ *
  * @param req.params - post id passed in through route param
  *
  * (ex. http://<IP>:<PORT>/api/post/<UNIQUE_MONGO_ObjectId_FOR_POST>)
@@ -37,11 +38,11 @@ export default async function getSinglePost(req: Request, res: Response) {
             });
         }
 
-        // validate post ID format
+        // validate post ID
         if (!ObjectId.isValid(postId)) {
             return res.status(400).json({
                 status: "error",
-                message: "Invalid post ID format"
+                message: "Invalid post ID"
             });
         }
 
