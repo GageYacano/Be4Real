@@ -14,7 +14,7 @@ interface RequestData {
 /**
  * Adds a reaction to a post.
  *
- * @param req.params - post id passed in through route param
+ * @param req.params.postId - post id passed in through route param
  * @param req.body.reaction - string containing reaction
  */
 export default async function react(req: Request, res: Response) {
