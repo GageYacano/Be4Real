@@ -9,6 +9,7 @@ import register from "./endpoints/auth/register.js";
 import login from "./endpoints/auth/login.js";
 import verifyUser from "./endpoints/auth/verfiy_user.js";
 import resendVerification from "./endpoints/auth/resend_verification.js";
+import makePost from "./endpoints/post/make_post.js";
 
 dotenv.config();
 const WEB_DIR = path.resolve("../web");
@@ -30,7 +31,8 @@ app.use(express.json());
 app.post("/api/auth/register", register);
 app.post("/api/auth/login", login);
 app.post("/api/auth/verify-user", verifyUser);
-app.post("/api/auth/resend-verification", resendVerification)
+app.post("/api/auth/resend-verification", resendVerification);
+app.post("/api/post/make-post", makePost);
 
 // Static site content
 app.use(express.static(WEB_DIR, { 
