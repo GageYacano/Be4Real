@@ -6,9 +6,9 @@ import {ObjectId} from "mongodb";
 
 /**
  * Gets a single post by ID
- * @param req - Express request object with postId in params
- * @param res - Express response object
- * @returns JSON response with post data
+ * @param req.params - post id passed in through route param
+ *
+ * (ex. http://<IP>:<PORT>/api/post/<UNIQUE_MONGO_ObjectId_FOR_POST>)
  */
 export default async function getSinglePost(req: Request, res: Response) {
     try {
