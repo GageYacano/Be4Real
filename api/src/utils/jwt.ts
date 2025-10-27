@@ -30,6 +30,11 @@ type CheckRefreshJWTResult = {
     token: string;
 }
 
+type GetJWTResult = {
+    err: Error | null;
+    token: string;
+}
+
 async function checkJWT(token: string): Promise<CheckJwtResult> {
     try {
         const { payload } = await jwtVerify(token, SECRET, {
@@ -80,10 +85,36 @@ async function checkAndRefreshJWT(token: string): Promise<CheckRefreshJWTResult>
     }
 }
 
+function getJWT(authHeader: string | undefined): GetJWTResult {
+    try {
+        if (!authHeader) {
+            throw new Error("Missing authorization header");
+        }
+        if (!authHeader.startsWith("Bearer ")) {
+            throw new Error("Invalid authorization header format (no \"Bearer \")");
+        }
+
+        // extracts token from "Bearer <token>"
+        const token = authHeader.substring(7);
+
+        return {
+            err: null,
+            token: token
+        };
+    } catch (e: any) {
+        return {
+            err: e,
+            token: ""
+        };
+    }
+}
+
 export {
     CheckJwtResult,
     CheckRefreshJWTResult,
+    GetJWTResult,
     createJWT,
-    checkJWT, 
-    checkAndRefreshJWT
+    checkJWT,
+    checkAndRefreshJWT,
+    getJWT
 }
