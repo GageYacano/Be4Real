@@ -13,6 +13,7 @@ import resendVerification from "./endpoints/auth/resend_verification.js";
 import makePost from "./endpoints/post/make_post.js";
 import getSinglePost from "./endpoints/post/get_single_post.js";
 import react from "./endpoints/post/react.js";
+import getUser from "./endpoints/user/get_user.js";
 
 dotenv.config();
 const WEB_DIR = path.resolve("../web");
@@ -38,6 +39,7 @@ app.post("/api/auth/resend-verification", resendVerification);
 app.post("/api/post/make-post", makePost);
 app.get("/api/post/:postId", getSinglePost);
 app.post("/api/post/:postId/react", react);
+app.get("/api/user/:identifier", getUser);
 
 // Static site content
 app.use(express.static(WEB_DIR, { 
