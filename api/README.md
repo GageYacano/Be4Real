@@ -37,6 +37,10 @@ All endpoints return JSON. In general, these are how responses are formatted:
 ### TO-DO / Limitations
 - Verification codes are logged to console (not sent to email yet)
 
+### API Calls
+- Make sure the HTTP request method is set correctly (refer to `Postman` or `server.ts` for what these should be).
+  - ex. in `server.ts`, `app.post(...)` sets said endpoint to accept POST requests.
+  
 ### JWT Token Format
 JWT tokens are base64-encoded strings with three parts separated by dots:
 ```
