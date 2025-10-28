@@ -21,9 +21,17 @@ interface DBPost {
     ctime: number;
     imgData: string;
     user: ObjectId;
-    reactions: { 
-        [key: string]: number 
-    }[];
+    reactions: {
+        [key: string]: number
+    };
 }
 
-export { DBUser, DBPost };
+interface DBReaction {
+    _id?: ObjectId;
+    post: ObjectId;
+    user: ObjectId;
+    reaction: string;
+    ctime: number;
+}
+
+export { DBUser, DBPost, DBReaction };

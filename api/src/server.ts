@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import dotenv from "dotenv";
+import {setupIndexes} from "./utils/setup_indexes.js";
 
 // Import endpoint logic
 import register from "./endpoints/auth/register.js";
@@ -48,5 +49,8 @@ app.use((_, res) => res.status(404).json({
     status: "error", 
     message: "Not found" 
 }));
+
+// setup database indexes
+setupIndexes().catch(console.error);
 
 app.listen(PORT, () => console.log("Server running on port " + PORT));
