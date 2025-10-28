@@ -25,7 +25,7 @@ export default async function makePost(req: Request, res: Response) {
     try {
         const {err: getJWTErr, token} = getJWT(req.headers.authorization);
         if (getJWTErr !== null) {
-            return res.status(401).json({ // 401 unauthorized
+            return res.status(401).json({
                 status: "error",
                 message: getJWTErr.message
             });
@@ -33,7 +33,7 @@ export default async function makePost(req: Request, res: Response) {
 
         const {err: checkJWTErr, uid} = await checkJWT(token);
         if (checkJWTErr !== null) {
-            return res.status(401).json({ // 401 unauthorized
+            return res.status(401).json({
                 status: "error",
                 message: checkJWTErr.message
             });
@@ -43,7 +43,7 @@ export default async function makePost(req: Request, res: Response) {
             imgData
         }: RequestData = req.body;
         if (!imgData) {
-            return res.status(400).json({ // 400 bad request
+            return res.status(400).json({
                 status: "error",
                 message: "Missing fields"
             });
@@ -55,7 +55,7 @@ export default async function makePost(req: Request, res: Response) {
             z.string().min(1).parse(imgData);
         } catch (e: any) {
             console.error(e);
-            return res.status(400).json({ // 400 bad request
+            return res.status(400).json({
                 status: "error",
                 message: "Invalid fields"
             });
@@ -69,7 +69,7 @@ export default async function makePost(req: Request, res: Response) {
         const userId = new ObjectId(uid);
         const user = await usersColl.findOne({_id: userId});
         if (!user) {
-            return res.status(404).json({ // 404 not found
+            return res.status(404).json({
                 status: "error",
                 message: "User not found"
             });
@@ -80,7 +80,7 @@ export default async function makePost(req: Request, res: Response) {
             ctime: Date.now(),
             imgData: imgData,
             user: userId,
-            reactions: []
+            reactions: {}
         };
 
         // insert post into db
@@ -93,14 +93,17 @@ export default async function makePost(req: Request, res: Response) {
             {$push: {posts: postId}}
         );
 
-        res.status(200).json({ // 200 OK
+        res.status(200).json({
             status: "success",
             message: "Post created",
+            data: {
+                postId: postId.toString()
+            }
         });
 
     } catch (e: any) {
         console.error(e);
-        res.status(500).json({ // 500 internal server error
+        res.status(500).json({
             status: "error",
             message: "Internal server error"
         });
