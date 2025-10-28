@@ -1,8 +1,8 @@
 import {Request, Response} from "express";
 import {z} from "zod";
-import {getDB} from "../../utils/mongo.js";
-import {DBPost, DBReaction, DBUser} from "../../types/mongo_schemas.js";
-import {getJWT, checkJWT} from "../../utils/jwt.js";
+import {getDB} from "../../../utils/mongo.js";
+import {DBPost, DBReaction, DBUser} from "../../../types/mongo_schemas.js";
+import {getJWT, checkJWT} from "../../../utils/jwt.js";
 import {ObjectId} from "mongodb";
 
 interface RequestData {

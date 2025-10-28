@@ -1,6 +1,6 @@
 import {Request, Response} from "express";
-import {getDB} from "../../utils/mongo.js";
-import {DBPost} from "../../types/mongo_schemas.js";
+import {getDB} from "../../../utils/mongo.js";
+import {DBPost} from "../../../types/mongo_schemas.js";
 //import {getJWT, checkJWT} from "../../utils/jwt.js";
 import {ObjectId} from "mongodb";
 

@@ -1,6 +1,6 @@
 import {Request, Response} from "express";
-import {getDB} from "../../utils/mongo.js";
-import {DBUser, DBPost} from "../../types/mongo_schemas.js";
+import {getDB} from "../../../utils/mongo.js";
+import {DBUser, DBPost} from "../../../types/mongo_schemas.js";
 import {ObjectId, Collection} from "mongodb";
 
 async function findUserById(usersColl: Collection<DBUser>, identifier: string): Promise<DBUser | null> {

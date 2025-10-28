@@ -14,6 +14,9 @@ import makePost from "./endpoints/post/make_post.js";
 import getSinglePost from "./endpoints/post/get_single_post.js";
 import react from "./endpoints/post/react.js";
 import getUser from "./endpoints/user/get_user.js";
+import getSinglePost from "./endpoints/post/get/get_single_post.js";
+import react from "./endpoints/post/react/react.js";
+import getUser from "./endpoints/user/get/get_user.js";
 
 dotenv.config();
 const WEB_DIR = path.resolve("../web");
@@ -40,6 +43,9 @@ app.post("/api/post/make-post", makePost);
 app.get("/api/post/:postId", getSinglePost);
 app.post("/api/post/:postId/react", react);
 app.get("/api/user/:identifier", getUser);
+app.get("/api/post/get/:postId", getSinglePost);
+app.post("/api/post/react/:postId", react);
+app.get("/api/user/get/:identifier", getUser);
 
 // Static site content
 app.use(express.static(WEB_DIR, { 
