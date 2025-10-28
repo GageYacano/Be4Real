@@ -34,7 +34,7 @@ export default async function getSinglePost(req: Request, res: Response) {
         if (!postId) {
             return res.status(400).json({
                 status: "error",
-                message: "Missing post ID"
+                message: "Missing post ID (Hint: must be passed as route parameter)"
             });
         }
 
