@@ -11,11 +11,9 @@ import login from "./endpoints/auth/login.js";
 import verifyUser from "./endpoints/auth/verfiy_user.js";
 import resendVerification from "./endpoints/auth/resend_verification.js";
 import makePost from "./endpoints/post/make_post.js";
-import getSinglePost from "./endpoints/post/get_single_post.js";
-import react from "./endpoints/post/react.js";
-import getUser from "./endpoints/user/get_user.js";
 import getSinglePost from "./endpoints/post/get/get_single_post.js";
 import react from "./endpoints/post/react/react.js";
+import getFeed from "./endpoints/post/get_feed.js";
 import getUser from "./endpoints/user/get/get_user.js";
 
 dotenv.config();
@@ -40,11 +38,9 @@ app.post("/api/auth/login", login);
 app.post("/api/auth/verify-user", verifyUser);
 app.post("/api/auth/resend-verification", resendVerification);
 app.post("/api/post/make-post", makePost);
-app.get("/api/post/:postId", getSinglePost);
-app.post("/api/post/:postId/react", react);
-app.get("/api/user/:identifier", getUser);
 app.get("/api/post/get/:postId", getSinglePost);
 app.post("/api/post/react/:postId", react);
+app.get("/api/post/get-feed", getFeed);
 app.get("/api/user/get/:identifier", getUser);
 
 // Static site content
