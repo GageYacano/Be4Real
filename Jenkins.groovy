@@ -4,8 +4,8 @@ pipeline {
     environment {
         NODE_VERSION = '20'
         API_DIR = 'api'
-        DEPLOY_DIR = '/opt/be4real-api'
-        PM2_NAME = 'be4real-api'
+        DEPLOY_DIR = '/opt/svr'
+        SERVICE_NAME = 'svr'
         GIT_CREDENTIALS_ID = 'git'
     }
 
@@ -33,7 +33,7 @@ pipeline {
             steps {
                 sh '''
                 cd ${API_DIR}
-                npm install
+                npm ci --omit=dev
                 '''
             }
         }
@@ -51,30 +51,25 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying API to ${DEPLOY_DIR}..."
+                sudo rm -rf ${DEPLOY_DIR}/*
                 sudo mkdir -p ${DEPLOY_DIR}
-                sudo cp -r ${API_DIR}/* ${DEPLOY_DIR}/
+                sudo cp -r ${API_DIR}/dist ${DEPLOY_DIR}/
+                sudo cp -r ${API_DIR}/package.json ${DEPLOY_DIR}/
+                sudo cp -r ${API_DIR}/package-lock.json ${DEPLOY_DIR}/
+                sudo cp -r ${API_DIR}/.env ${DEPLOY_DIR}/ || true
                 '''
             }
         }
 
-        stage('Install PM2 and Restart App') {
+        stage('Install Dependencies and Restart Service') {
             steps {
                 sh '''
-                    if ! command -v pm2 > /dev/null; then
-                        sudo npm install -g pm2
-                    fi
-
-                    cd ${DEPLOY_DIR}
-                    if pm2 list | grep -q ${PM2_NAME}; then
-                        pm2 restart ${PM2_NAME}
-                    else
-                        pm2 start dist/src/server.js --name ${PM2_NAME}
-                    fi
-
-                    pm2 save
-
-                    sudo env PATH=$PATH:/usr/bin:/usr/local/bin pm2 startup systemd -u jenkins --hp /var/lib/jenkins -u jenkins --hp /var/lib/jenkins
-                    '''
+                cd ${DEPLOY_DIR}
+                sudo npm ci --omit=dev
+                sudo systemctl daemon-reload
+                sudo systemctl restart ${SERVICE_NAME}
+                sudo systemctl status ${SERVICE_NAME} --no-pager -l | head -n 10
+                '''
             }
         }
     }

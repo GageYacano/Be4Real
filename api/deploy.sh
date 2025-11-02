@@ -17,7 +17,8 @@ echo "Copying files"
 rsync -avz \
   --exclude 'node_modules' \
   --exclude '.git' \
-  --exclude 'src' \
+  --exclude '/src' \
+  --exclude '/test' \
   --exclude 'deploy.sh' \
   ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
