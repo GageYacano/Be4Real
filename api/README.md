@@ -34,9 +34,6 @@ All endpoints return JSON. In general, these are how responses are formatted:
 
 ## Developer Notes
 
-### TO-DO / Limitations
-- Verification codes are logged to console (not sent to email yet)
-
 ### API Calls
 - Make sure the HTTP request method is set correctly (refer to `Postman` or `server.ts` for what these should be).
   - ex. in `server.ts`, `app.post(...)` sets said endpoint to accept POST requests.
@@ -79,3 +76,5 @@ Some endpoints use route parameters. These are put into the API URL path itself,
 **Format:** `/api/resource/:parameterName`
 
 Where `:parameterName` defines a variable for the endpoint to use.
+
+
