@@ -33,7 +33,7 @@ pipeline {
             steps {
                 sh '''
                 cd ${API_DIR}
-                npm ci --omit=dev
+                npm ci
                 '''
             }
         }
