@@ -1,5 +1,7 @@
 # Be4Real API Docs
 
+TEST
+
 ## Authentication
 Private user-related endpoints require a JWT token in the `Authorization` header:
 ```

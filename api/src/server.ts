@@ -57,7 +57,4 @@ app.use((_, res) => res.status(404).json({
 // setup database indexes
 setupIndexes().catch(console.error);
 
-app.listen(PORT, () => {
-    console.log("Server running on port " + PORT);
-    console.log("jenkins deploy test");
-});
+app.listen(PORT, () => console.log("Server running on port " + PORT));
