@@ -35,7 +35,7 @@ export default async function login(req: Request, res: Response) {
             console.error(e)
             return res.status(400).json({ 
                 status: "error",
-                message: "Invalid fields"
+                message: "Invalid fields",
             })
         }
 
@@ -45,7 +45,7 @@ export default async function login(req: Request, res: Response) {
         const user = await usersColl.findOne({ email });
     
         if (user === null) 
-            return res.status(401).json({
+            return res.status(400).json({
                 status: "error",
                 message: "Invalid username or password"
             });
@@ -53,13 +53,12 @@ export default async function login(req: Request, res: Response) {
         if (user.loginMethod !== "password")
             return res.status(403).json({
                 status: "error",
-                message: "Incorrect login method for user",
-                needsVerification: true
+                message: "Incorrect login method for user"
             });
         
         const validPassword = await bcrypt.compare(password, user.passHash ?? "");
         if (!validPassword)
-            return res.status(401).json({
+            return res.status(400).json({
                 status: "error",
                 message: "Invalid username or password"
             });

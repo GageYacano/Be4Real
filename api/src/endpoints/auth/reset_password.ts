@@ -3,22 +3,24 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { getDB } from "../../utils/mongo.js";
 import { DBUser } from "../../types/mongo_schemas.js";
-import { createJWT } from "../../utils/jwt.js";
+import bcrypt from "bcrypt"
 
 interface RequestData {
     email: string,
+    newPassword: string,
     code: string
 }
 
-export default async function verifyUser(req: Request, res: Response) {
+export default async function resetPassword(req: Request, res: Response) {
 
     try {
         let {
             email,
+            newPassword,
             code
         }: RequestData = req.body;
 
-        if (!email || !code)
+        if (!email || !code || !newPassword)
             return res.status(400).json({ 
                 status: "error",
                 message: "Missing fields" 
@@ -26,9 +28,11 @@ export default async function verifyUser(req: Request, res: Response) {
 
         email = email.toLowerCase().trim()
         code = code.trim()
+        newPassword = newPassword.trim()
 
         try {
             z.email().parse(email)
+            z.string().min(8).max(256).parse(newPassword)
             z.string().length(6).parse(code)
         } catch (e: any) {
             console.error(e)
@@ -45,28 +49,23 @@ export default async function verifyUser(req: Request, res: Response) {
             verifCode: code 
         }, { 
             $set: { 
-                verified: true, 
+                passHash: await bcrypt.hash(newPassword, 10), 
                 verifCode: null 
             } 
         }, { 
             returnDocument: "after" 
         });
-
-        if (!updatedUser)
-            return res.status(401).json({
+        if (!updatedUser) 
+            return res.status(400).json({
                 status: "error",
-                message: "Invalid code or user not found",
-                invalidCode: true
+                message: "User not found or incorrect verification code"
             });
-
-        // issue auth jwt
-        const authToken = await createJWT(updatedUser._id.toHexString());
+        
         return res.status(200).json({
             status: "success",
-            message: "User verified",
-            token: authToken
+            message: "Password reset"
         })
-
+        
     } catch (e: any) {
         console.error(e)
         res.status(500).json({ 

@@ -4,7 +4,6 @@ import { z } from "zod";
 import bcrypt from "bcrypt"
 import { getDB } from "../../utils/mongo.js";
 import { DBUser } from "../../types/mongo_schemas.js";
-import { randomInt } from "crypto";
 
 interface RequestData {
     username: string,
@@ -45,9 +44,6 @@ export default async function register(req: Request, res: Response) {
             })
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
-        const verifCode = String(randomInt(0, 1_000_000)).padStart(6, "0");
-
         const db = await getDB()
         const usersColl = db.collection<DBUser>("users")
 
@@ -58,9 +54,9 @@ export default async function register(req: Request, res: Response) {
             loginMethod: "password",
             username: username,
             email: email,
-            passHash: passwordHash,
+            passHash: await bcrypt.hash(password, 10),
             verified: false,
-            verifCode: verifCode,
+            verifCode: null,
             posts: [],
             followers: 0,
             following: 0,
@@ -77,9 +73,6 @@ export default async function register(req: Request, res: Response) {
             }
             throw err;
         }
-
-        // TODO: send email/sms
-        console.log("Verification code for " + email + ": " + verifCode); // for dev
 
         res.status(200).json({ 
             status: "success",

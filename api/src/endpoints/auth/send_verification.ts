@@ -9,7 +9,7 @@ interface RequestData {
     email: string,
 }
 
-export default async function resendVerification(req: Request, res: Response) {
+export default async function sendVerificationCode(req: Request, res: Response) {
 
     try {
         let { email }: RequestData = req.body;
@@ -45,7 +45,7 @@ export default async function resendVerification(req: Request, res: Response) {
         })
 
         if (updateRes.matchedCount === 0)
-            return res.status(404).json({
+            return res.status(400).json({
                 status: "error",
                 message: "User not found or already verified"
             });
