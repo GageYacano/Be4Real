@@ -35,22 +35,17 @@ app.use(cors({
 app.use(express.json());  
 
 // API
-app.post("/api/auth/register", register);
-app.post("/api/auth/login", login);
-app.post("/api/auth/send-verification", sendVerificationCode);
-app.post("/api/auth/verify-user", verifyUser);
-app.post("/api/auth/reset-password", resetPassword);
-app.post("/api/post/make-post", makePost);
-app.get("/api/post/get/:postId", getSinglePost);
-app.post("/api/post/react/:postId", react);
-app.get("/api/post/get-feed", getFeed);
-app.get("/api/user/get/:identifier", getUser);
+app.post("/auth/register", register);
+app.post("/auth/login", login);
+app.post("/auth/send-verification", sendVerificationCode);
+app.post("/auth/verify-user", verifyUser);
+app.post("/auth/reset-password", resetPassword);
+app.post("/post/make-post", makePost);
+app.get("/post/get/:postId", getSinglePost);
+app.post("/post/react/:postId", react);
+app.get("/post/get-feed", getFeed);
+app.get("/user/get/:identifier", getUser);
 
-// Static site content
-app.use(express.static(WEB_DIR, { 
-    index: "index.html", 
-    extensions: ["html"] 
-}));
 
 app.use((_, res) => res.status(404).json({ 
     status: "error", 

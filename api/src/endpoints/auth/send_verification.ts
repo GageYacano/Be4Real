@@ -6,13 +6,16 @@ import { DBUser } from "../../types/mongo_schemas.js";
 import { randomInt } from "crypto";
 import nodemailer from "nodemailer"
 
+// import { setDefaultResultOrder } from "node:dns";
+// setDefaultResultOrder("ipv4first");
+
 interface RequestData {
     email: string,
 }
 
 const transporter = nodemailer.createTransport({
     host: "mail.smtp2go.com",
-    port: 587,
+    port: 2525,
     secure: false,
     auth: {
         user: process.env.EMAIL_USERNAME,
