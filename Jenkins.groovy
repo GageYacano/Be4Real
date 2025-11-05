@@ -4,8 +4,9 @@ pipeline {
     environment {
         NODE_VERSION = '20'
         API_DIR = 'api'
-        DEPLOY_DIR = '/opt/svr'
-        SERVICE_NAME = 'svr'
+        DEPLOY_DIR = '/opt/api'
+        SERVICE_NAME = 'api'
+        ENTRY_FILE = 'src/index.js'
         GIT_CREDENTIALS_ID = 'git'
     }
 
@@ -51,24 +52,25 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying API to ${DEPLOY_DIR}..."
-                sudo rm -rf ${DEPLOY_DIR}/*
-                sudo mkdir -p ${DEPLOY_DIR}
-                sudo cp -r ${API_DIR}/dist ${DEPLOY_DIR}/
-                sudo cp -r ${API_DIR}/package.json ${DEPLOY_DIR}/
-                sudo cp -r ${API_DIR}/package-lock.json ${DEPLOY_DIR}/
-                sudo cp -r ${API_DIR}/.env ${DEPLOY_DIR}/ || true
+                rm -rf ${DEPLOY_DIR}/* && mkdir -p ${DEPLOY_DIR}
+                cp -r ${API_DIR}/dist/* ${DEPLOY_DIR}/
+                cp ${API_DIR}/package.json ${DEPLOY_DIR}/
+                cp ${API_DIR}/package-lock.json ${DEPLOY_DIR}/
+                cp ${API_DIR}/.env ${DEPLOY_DIR}/ || true
                 '''
             }
         }
 
-        stage('Install Dependencies and Restart Service') {
+        stage('Install Dependencies and Restart PM2') {
             steps {
                 sh '''
                 cd ${DEPLOY_DIR}
-                sudo npm ci --omit=dev
-                sudo systemctl daemon-reload
-                sudo systemctl restart ${SERVICE_NAME}
-                sudo systemctl status ${SERVICE_NAME} --no-pager -l | head -n 10
+                npm ci --omit=dev
+                if ! command -v pm2 > /dev/null; then
+                    npm install -g pm2
+                fi
+                pm2 reload ${SERVICE_NAME} --update-env || pm2 start ${ENTRY_FILE} --name ${SERVICE_NAME}
+                pm2 save
                 '''
             }
         }
