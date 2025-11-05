@@ -5,6 +5,8 @@ import path from "path";
 import dotenv from "dotenv";
 import {setupIndexes} from "./utils/setup_indexes.js";
 
+dotenv.config();
+
 // Import endpoint logic
 import register from "./endpoints/auth/register.js";
 import login from "./endpoints/auth/login.js";
@@ -17,7 +19,6 @@ import getFeed from "./endpoints/post/get_feed.js";
 import getUser from "./endpoints/user/get/get_user.js";
 import resetPassword from "./endpoints/auth/reset_password.js";
 
-dotenv.config();
 const WEB_DIR = path.resolve("../web");
 const PORT = 3000
 

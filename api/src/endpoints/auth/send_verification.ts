@@ -4,10 +4,21 @@ import { z } from "zod";
 import { getDB } from "../../utils/mongo.js";
 import { DBUser } from "../../types/mongo_schemas.js";
 import { randomInt } from "crypto";
+import nodemailer from "nodemailer"
 
 interface RequestData {
     email: string,
 }
+
+const transporter = nodemailer.createTransport({
+    host: "mail.smtp2go.com",
+    port: 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD
+    }
+});
 
 export default async function sendVerificationCode(req: Request, res: Response) {
 
@@ -39,7 +50,6 @@ export default async function sendVerificationCode(req: Request, res: Response) 
         const usersColl = db.collection<DBUser>("users")
         const updateRes = await usersColl.updateOne({ 
             email,
-            verified: false
         }, {
             "$set": { verifCode }
         })
@@ -52,6 +62,13 @@ export default async function sendVerificationCode(req: Request, res: Response) 
 
         // TODO: send email/sms
         console.log("Verification code for " + email + ": " + verifCode); // for dev
+
+        await transporter.sendMail({
+            from: "no-reply@be4real.life",
+            to: email,
+            subject: "Be4Real Verification Code",
+            text: `Your code is ${verifCode}`
+        });
 
         return res.status(200).json({
             status: "success",
