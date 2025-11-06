@@ -52,11 +52,11 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying API to ${DEPLOY_DIR}..."
-                rm -rf ${DEPLOY_DIR}/* && mkdir -p ${DEPLOY_DIR}
-                cp -r ${API_DIR}/dist/* ${DEPLOY_DIR}/
-                cp ${API_DIR}/package.json ${DEPLOY_DIR}/
-                cp ${API_DIR}/package-lock.json ${DEPLOY_DIR}/
-                cp ${API_DIR}/.env ${DEPLOY_DIR}/ || true
+                sudo rm -rf ${DEPLOY_DIR}/* && sudo mkdir -p ${DEPLOY_DIR}
+                sudo cp -r ${API_DIR}/dist/* ${DEPLOY_DIR}/
+                sudo cp ${API_DIR}/package.json ${DEPLOY_DIR}/
+                sudo cp ${API_DIR}/package-lock.json ${DEPLOY_DIR}/
+                sudo cp ${API_DIR}/.env ${DEPLOY_DIR}/ || true
                 '''
             }
         }
@@ -65,12 +65,12 @@ pipeline {
             steps {
                 sh '''
                 cd ${DEPLOY_DIR}
-                npm ci --omit=dev
+                sudo npm ci --omit=dev
                 if ! command -v pm2 > /dev/null; then
-                    npm install -g pm2
+                    sudo npm install -g pm2
                 fi
-                pm2 reload ${SERVICE_NAME} --update-env || pm2 start ${ENTRY_FILE} --name ${SERVICE_NAME}
-                pm2 save
+                sudo pm2 reload ${SERVICE_NAME} --update-env || sudo pm2 start ${ENTRY_FILE} --name ${SERVICE_NAME}
+                sudo pm2 save
                 '''
             }
         }
