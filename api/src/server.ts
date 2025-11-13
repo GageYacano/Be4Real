@@ -33,6 +33,7 @@ app.use(cors({
     credentials: true, // allow cookies / auth headers
 }));              
 app.use(express.json());  
+ 
 
 // API
 app.post("/auth/register", register);
