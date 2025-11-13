@@ -62,7 +62,6 @@ async function checkJWT(token: string): Promise<CheckJwtResult> {
 }
 
 async function checkAndRefreshJWT(token: string): Promise<CheckRefreshJWTResult> {
-    console.log(token)
     try {
         const { err, uid, exp } = await checkJWT(token);
         if (err !== null)
