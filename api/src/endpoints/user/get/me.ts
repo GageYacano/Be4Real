@@ -30,6 +30,7 @@ export default async function getCurrentUser(req: Request, res: Response) {
                 message: "Invalid user id in token"
             });
         }
+        console.log(uid)
         const user = await usersColl.findOne({ _id: new ObjectId(uid) });
 
         if (!user) {
