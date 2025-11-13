@@ -46,7 +46,7 @@ app.get("/post/get/:postId", getSinglePost);
 app.post("/post/react/:postId", react);
 app.get("/post/get-feed", getFeed);
 app.get("/user/get/:identifier", getUser);
-app.get("/user/get/me", getCurrentUser)
+app.get("/user/me", getCurrentUser)
 
 
 app.use((_, res) => res.status(404).json({ 

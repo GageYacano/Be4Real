@@ -54,7 +54,7 @@ export default function App() {
   const fetchCurrentUser = useCallback(
     async (token: string) => {
       try {
-        const res = await fetch(`${LOCAL_URL}/user/get/me`, {
+        const res = await fetch(`${LOCAL_URL}/user/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

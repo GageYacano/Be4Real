@@ -6,7 +6,6 @@ import { ObjectId } from "mongodb";
 
 export default async function getCurrentUser(req: Request, res: Response) {
     try {
-
         const {err, uid, token} = await checkAndRefreshJWT(req.headers.authorization ?? "");
         if (err) {
             return res.status(401).json({
@@ -34,6 +33,7 @@ export default async function getCurrentUser(req: Request, res: Response) {
 
         return res.status(200).json({
             status: "success",
+            token,
             user: {
                 id: user._id?.toHexString(),
                 username: user.username,
