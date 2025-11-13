@@ -26,11 +26,9 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ["*"], 
+    origin: ["http://localhost:3001","http://be4real.life"], 
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Authorization"],
-    credentials: true, // allow cookies / auth headers
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));              
 app.use(express.json());  
  

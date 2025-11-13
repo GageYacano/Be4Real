@@ -3,6 +3,9 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
+const SERVER_URL = "http://bef4real.life/api";
+const LOCAL_URL = "http://localhost:3000"; 
+
 interface LoginPageProps {
   onSwitchToRegister?: () => void;
   onLoginSuccess?: (token: string) => void;
@@ -21,7 +24,7 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/auth/login`, {
+      const res = await fetch(`${LOCAL_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: identifier.trim(), password }),
@@ -57,7 +60,7 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
         throw new Error("Please enter the email associated with your account.");
       }
 
-      const res = await fetch(`/api/auth/verify-user`, {
+      const res = await fetch(`${LOCAL_URL}/auth/verify-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: verifyEmail, code }),
@@ -84,7 +87,7 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
       if (!/@/.test(resendEmail)) {
         throw new Error("Please enter your email to resend the verification code.");
       }
-      await fetch(`/api/auth/resend-verification`, {
+      await fetch(`${LOCAL_URL}/auth/resend-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resendEmail }),
