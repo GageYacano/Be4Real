@@ -12,12 +12,14 @@ import register from "./endpoints/auth/register.js";
 import login from "./endpoints/auth/login.js";
 import verifyUser from "./endpoints/auth/verfiy_user.js";
 import sendVerificationCode from "./endpoints/auth/send_verification.js";
+import resetPassword from "./endpoints/auth/reset_password.js";
+
 import makePost from "./endpoints/post/make_post.js";
 import getSinglePost from "./endpoints/post/get/get_single_post.js";
 import react from "./endpoints/post/react/react.js";
 import getFeed from "./endpoints/post/get_feed.js";
 import getUser from "./endpoints/user/get/get_user.js";
-import resetPassword from "./endpoints/auth/reset_password.js";
+import getCurrentUser from "./endpoints/user/get/me.js";
 
 const WEB_DIR = path.resolve("../web");
 const PORT = 3000
@@ -44,6 +46,7 @@ app.get("/post/get/:postId", getSinglePost);
 app.post("/post/react/:postId", react);
 app.get("/post/get-feed", getFeed);
 app.get("/user/get/:identifier", getUser);
+app.get("/user/get/me", getCurrentUser)
 
 
 app.use((_, res) => res.status(404).json({ 

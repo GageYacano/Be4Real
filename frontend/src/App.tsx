@@ -5,6 +5,9 @@ import { HomePage } from "./pages/HomePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { Button } from "./components/ui/button";
 
+const SERVER_URL = "http://bef4real.life/api";
+const LOCAL_URL = "http://localhost:3000";
+
 type View = "login" | "register" | "home" | "profile";
 
 type SelectedProfile = {
@@ -51,7 +54,7 @@ export default function App() {
   const fetchCurrentUser = useCallback(
     async (token: string) => {
       try {
-        const res = await fetch("/api/user/me", {
+        const res = await fetch(`${LOCAL_URL}/user/get/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -185,7 +188,7 @@ export default function App() {
     try {
       setIsUploading(true);
       const base64 = await fileToBase64(file);
-      const res = await fetch("/api/post/make-post", {
+      const res = await fetch(`${LOCAL_URL}/post/make-post`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,

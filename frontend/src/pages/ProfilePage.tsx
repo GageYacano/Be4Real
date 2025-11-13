@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 
+const SERVER_URL = "http://bef4real.life/api";
+const LOCAL_URL = "http://localhost:3000";
+
 interface ProfilePageProps {
   authToken: string;
   profile: {
@@ -61,7 +64,7 @@ export function ProfilePage({
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/user/get/${profile.id}`, {
+        const res = await fetch(`${LOCAL_URL}/user/get/${profile.id}`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
@@ -88,7 +91,7 @@ export function ProfilePage({
         const postIds = rawPosts.map(normalizeId).filter(Boolean);
         for (const postId of postIds) {
           try {
-            const postRes = await fetch(`/api/post/get/${postId}`, {
+            const postRes = await fetch(`${LOCAL_URL}/post/get/me`, {
               headers: {
                 Authorization: `Bearer ${authToken}`,
               },

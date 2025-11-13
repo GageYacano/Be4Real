@@ -3,6 +3,9 @@ import { Heart, MessageCircle, Send } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 
+const SERVER_URL = "http://bef4real.life/api";
+const LOCAL_URL = "http://localhost:3000"; 
+
 interface HomePageProps {
   authToken: string;
   onViewProfile?: (profile: { id: string; username?: string }) => void;
@@ -78,7 +81,7 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
           return cached;
         }
 
-        const res = await fetch(`/api/user/get/${userId}`, {
+        const res = await fetch(`${LOCAL_URL}/user/get/${userId}`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
@@ -99,10 +102,10 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
         if (rawPosts.length > 0) {
           const firstPostId = normalizeId(rawPosts[0]);
           if (firstPostId) {
-            const postRes = await fetch(`/api/post/get/${firstPostId}`, {
-              headers: {
-                Authorization: `Bearer ${authToken}`,
-              },
+            const postRes = await fetch(`${LOCAL_URL}/post/get/${firstPostId}`, {
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                },
             });
             if (postRes.ok) {
               const postJson = await postRes.json();
@@ -135,7 +138,7 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
     setError(null);
     setIsRefreshing(true);
     try {
-      const res = await fetch("/api/post/get-feed?limit=20", {
+      const res = await fetch(`${LOCAL_URL}/post/get-feed?limit=20`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -219,7 +222,7 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
   const handleToggleLike = useCallback(
     async (postId: string) => {
       try {
-        const res = await fetch(`/api/post/react/${postId}`, {
+        const res = await fetch(`${LOCAL_URL}/post/react/${postId}`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${authToken}`,

@@ -37,7 +37,7 @@ type GetJWTResult = {
 
 async function checkJWT(token: string): Promise<CheckJwtResult> {
     try {
-        const { payload } = await jwtVerify(token, SECRET, {
+        const { payload } = await jwtVerify(token.split(" ")[1], SECRET, {
             issuer: ISSUER,
             audience: AUDIENCE
         });
@@ -62,6 +62,7 @@ async function checkJWT(token: string): Promise<CheckJwtResult> {
 }
 
 async function checkAndRefreshJWT(token: string): Promise<CheckRefreshJWTResult> {
+    console.log(token)
     try {
         const { err, uid, exp } = await checkJWT(token);
         if (err !== null)

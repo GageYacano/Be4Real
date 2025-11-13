@@ -1,21 +1,14 @@
 import { Request, Response } from "express";
 import { getDB } from "../../../utils/mongo.js";
 import { DBUser } from "../../../types/mongo_schemas.js";
-import { getJWT, checkJWT } from "../../../utils/jwt.js";
+import { checkAndRefreshJWT, CheckRefreshJWTResult } from "../../../utils/jwt.js";
 import { ObjectId } from "mongodb";
 
 export default async function getCurrentUser(req: Request, res: Response) {
     try {
-        const { err: headerErr, token } = getJWT(req.headers.authorization);
-        if (headerErr) {
-            return res.status(401).json({
-                status: "error",
-                message: headerErr.message || "Missing or invalid authorization header"
-            });
-        }
 
-        const { err: jwtErr, uid } = await checkJWT(token);
-        if (jwtErr) {
+        const {err, uid, token} = await checkAndRefreshJWT(req.headers.authorization ?? "");
+        if (err) {
             return res.status(401).json({
                 status: "error",
                 message: "Invalid token"
@@ -30,7 +23,6 @@ export default async function getCurrentUser(req: Request, res: Response) {
                 message: "Invalid user id in token"
             });
         }
-        console.log(uid)
         const user = await usersColl.findOne({ _id: new ObjectId(uid) });
 
         if (!user) {
