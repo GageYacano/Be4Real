@@ -23,21 +23,14 @@ interface RequestData {
 export default async function makePost(req: Request, res: Response) {
 
     try {
-        const {err: getJWTErr, token} = getJWT(req.headers.authorization);
-        if (getJWTErr !== null) {
-            return res.status(401).json({
-                status: "error",
-                message: getJWTErr.message
-            });
-        }
-
-        const {err: checkJWTErr, uid} = await checkJWT(token);
+        const {err: checkJWTErr, uid} = await checkJWT(req.headers.authorization ?? "");
         if (checkJWTErr !== null) {
             return res.status(401).json({
                 status: "error",
                 message: checkJWTErr.message
             });
         }
+        console.log(uid)
 
         let {
             imgData
@@ -65,6 +58,7 @@ export default async function makePost(req: Request, res: Response) {
         const postsColl = db.collection<DBPost>("posts");
         const usersColl = db.collection<DBUser>("users");
 
+        
         // make sure user exists
         const userId = new ObjectId(uid);
         const user = await usersColl.findOne({_id: userId});
@@ -80,7 +74,16 @@ export default async function makePost(req: Request, res: Response) {
             ctime: Date.now(),
             imgData: imgData,
             user: userId,
-            reactions: {}
+            reactions: {
+                "❤️": 0,
+                "👍": 0,
+                "😂": 0,
+                "😮": 0,
+                "😢": 0,
+                "😡": 0,
+                "🔥": 0,
+                "👏": 0
+            }
         };
 
         // insert post into db

@@ -19,17 +19,9 @@ interface RequestData {
  */
 export default async function react(req: Request, res: Response) {
     try {
-        // get JWT
-        const {err: getJWTErr, token} = getJWT(req.headers.authorization);
-        if (getJWTErr !== null) {
-            return res.status(401).json({
-                status: "error",
-                message: getJWTErr.message
-            });
-        }
 
         // check JWT
-        const {err: checkJWTErr, uid} = await checkJWT(token);
+        const {err: checkJWTErr, uid} = await checkJWT(req.headers.authorization ?? "");
         if (checkJWTErr !== null) {
             return res.status(401).json({
                 status: "error",
@@ -76,7 +68,6 @@ export default async function react(req: Request, res: Response) {
 
         const db = await getDB();
         const postsColl = db.collection<DBPost>("posts");
-        const reactionsColl = db.collection<DBReaction>("reactions");
         const usersColl = db.collection<DBUser>("users");
 
         const postObjectId = new ObjectId(postId);

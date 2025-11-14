@@ -220,91 +220,70 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
     fetchFeed();
   }, [fetchFeed, reloadKey]);
 
-  const handleToggleLike = useCallback(
-    async (postId: string) => {
-      try {
-        const res = await fetch(`${LOCAL_URL}/post/react/${postId}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ reaction: "❤️" }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to toggle like");
-        }
-
-        const data = await res.json();
-        const message = String(data?.message ?? "").toLowerCase();
-        const removing = message.includes("removed");
-        const delta: number = removing ? -1 : 1;
-        const countDelta = Number(delta);
-
-        setLikedPosts((prev) => {
-          const next = { ...prev };
-          if (removing) {
-            delete next[postId];
-          } else {
-            next[postId] = true;
-          }
-          return next;
-        });
-
-        setPosts((prevPosts) =>
-          prevPosts.map((post) => {
-            if (post.id !== postId) return post;
-            const currentHeartCount = Number(post.reactions["❤️"] ?? 0);
-            const baseReactionCount = Number(post.reactionCount ?? 0);
-            const newHeartCount = Math.max(0, currentHeartCount + countDelta);
-            const newReactionCount = Math.max(0, baseReactionCount + countDelta);
-            const newReactions = { ...post.reactions };
-            if (newHeartCount <= 0) {
-              const { ["❤️"]: _removed, ...rest } = newReactions;
-              return { ...post, reactionCount: newReactionCount, reactions: rest };
+  // ---- Minimal addition: handle reactions ----
+  const handleReact = useCallback(async (postId: string, emoji: string) => {
+    // optimistic update
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              reactions: { ...p.reactions, [emoji]: (p.reactions[emoji] ?? 0) + 1 },
+              reactionCount: p.reactionCount + 1,
             }
-            newReactions["❤️"] = newHeartCount;
-            return { ...post, reactionCount: newReactionCount, reactions: newReactions };
-          })
+          : p
+      )
+    );
+
+    try {
+      const res = await fetch(`${LOCAL_URL}/post/react/${postId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ reaction: emoji }),
+      });
+
+      if (!res.ok) {
+        // rollback on failure
+        setPosts(prev =>
+          prev.map(p =>
+            p.id === postId
+              ? {
+                  ...p,
+                  reactions: {
+                    ...p.reactions,
+                    [emoji]: Math.max(0, (p.reactions[emoji] ?? 1) - 1),
+                  },
+                  reactionCount: Math.max(0, p.reactionCount - 1),
+                }
+              : p
+          )
         );
-      } catch (err) {
-        console.error("Failed to toggle like", err);
       }
-    },
-    [authToken]
-  );
-
-  const handleAddComment = useCallback(
-    (postId: string) => {
-      const draft = (commentDrafts[postId] ?? "").trim();
-      if (!draft) return;
-
-      const newComment = {
-        id: `${postId}-${Date.now()}`,
-        text: draft,
-        timestamp: Date.now(),
-      };
-
-      setComments((prev) => ({
-        ...prev,
-        [postId]: [...(prev[postId] ?? []), newComment],
-      }));
-
-      setCommentDrafts((prev) => ({
-        ...prev,
-        [postId]: "",
-      }));
-    },
-    [commentDrafts]
-  );
-
-  const handleDraftChange = useCallback((postId: string, value: string) => {
-    setCommentDrafts((prev) => ({ ...prev, [postId]: value }));
-  }, []);
+    } catch (e) {
+      // rollback on error
+      setPosts(prev =>
+        prev.map(p =>
+          p.id === postId
+            ? {
+                ...p,
+                reactions: {
+                  ...p.reactions,
+                  [emoji]: Math.max(0, (p.reactions[emoji] ?? 1) - 1),
+                },
+                reactionCount: Math.max(0, p.reactionCount - 1),
+              }
+            : p
+        )
+      );
+    }
+  }, [authToken]);
+  // -------------------------------------------
 
   return (
-    <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
+    <div className="max-w-md mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
       {isLoading ? (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl px-8 py-16 text-center text-gray-400">
           Loading your feed...
@@ -318,124 +297,33 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
           Your feed is empty. Share your first post!
         </div>
       ) : (
-        <div className="space-y-6 w-full max-w-sm">
+        <div className="space-y-6">
           {posts.map((post) => {
-            const isLiked = likedPosts[post.id] ?? false;
-            const heartCount = Number(post.reactions["❤️"] ?? 0);
-            const postComments = comments[post.id] ?? [];
-            const draft = commentDrafts[post.id] ?? "";
-
             return (
-                <div key={post.id} className="rounded-2xl max-w-96">
-                    <div className="h-24 flex w-full">
-                        <div className="w-10 aspect-square rounded-full">
-                            <img src={post.avatar} className="object-cover"/>
+                <div key={post.id}>
+                    <div className="rounded-2xl outline-gray-700 outline-1 overflow-hidden">
+                        <div className="h-14 p-3 flex gap-3 items-center w-full">
+                            <div className="w-10 flex-none aspect-square rounded-full outline-gray-700 outline-1 overflow-hidden">
+                                <img src={post.avatar} className="object-cover w-full h-full" />
+                            </div>
+                            <div className="font-semibold text-white">{post.username}</div>
+                        </div>
+                        <div className="aspect-square">
+                            <img src={post.image} className="object-cover w-full h-full"/>
                         </div>
                     </div>
-                    <div className="w-96">
-                        <img src={post.image} className="object-cover"/>
+                    <div className="w-full py-3 flex flex-wrap gap-2">
+                       {Object.entries(post.reactions).map(([emoji, count]) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReact(post.id, emoji)}
+                            className="px-3 py-1 bg-gray-800 rounded-full border border-gray-700 hover:bg-gray-700 cursor-pointer text-white text-sm"
+                          >
+                            {emoji} {count}
+                          </button>
+                        ))}
                     </div>
                 </div>
-            //     <div key={post.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-                    
-            //     </div>
-            //     <article key={post.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            //     <header className="flex items-center gap-3 px-5 py-4">
-            //       <button
-            //         onClick={() => onViewProfile?.({ id: post.userId, username: post.username })}
-            //         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-            //       >
-            //         <img
-            //           src={post.avatar}
-            //           alt={post.username}
-            //           className="w-11 h-11 rounded-full object-cover border border-gray-700"
-            //         />
-            //         <div className="text-left">
-            //           <p className="text-sm font-semibold text-white">{post.username}</p>
-            //           <p className="text-xs text-gray-400 uppercase tracking-wide">{post.postedAt}</p>
-            //         </div>
-            //       </button>
-            //     </header>
-
-            //     <div className="bg-black w-full max-w-sm">
-            //       <img
-            //         src={post.image}
-            //         alt={`${post.username}'s post`}
-            //         className="w-full object-cover max-h-[520px]"
-            //       />
-            //     </div>
-
-            //     <footer className="px-5 py-4 space-y-4">
-            //       <div className="flex items-center justify-between text-gray-300">
-            //         <div className="flex items-center gap-4">
-            //           <button
-            //             onClick={() => handleToggleLike(post.id)}
-            //             className={`hover:text-white transition-colors ${isLiked ? "text-red-500" : ""}`}
-            //             aria-pressed={isLiked}
-            //           >
-            //             <Heart className={`w-6 h-6 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
-            //           </button>
-            //           <button className="hover:text-white">
-            //             <MessageCircle className="w-6 h-6" />
-            //           </button>
-            //           <button className="hover:text-white">
-            //             <Send className="w-6 h-6" />
-            //           </button>
-            //         </div>
-            //       </div>
-
-            //       <div className="space-y-2 text-sm text-gray-100">
-            //         <p className="font-semibold">
-            //           {heartCount} {heartCount === 1 ? "like" : "likes"}
-            //         </p>
-            //         <div className="flex flex-wrap gap-2 text-xs text-gray-400">
-            //           {Object.entries(post.reactions).map(([emoji, count]) => (
-            //             <span
-            //               key={emoji}
-            //               className="px-3 py-1 bg-gray-800 rounded-full border border-gray-700"
-            //             >
-            //               {emoji} {count}
-            //             </span>
-            //           ))}
-            //         </div>
-            //       </div>
-
-            //       {postComments.length > 0 && (
-            //         <div className="space-y-1.5 text-xs text-gray-200">
-            //           {postComments.slice(-4).map((comment) => (
-            //             <div key={comment.id} className="flex items-start gap-2">
-            //               <span className="font-semibold text-white">You</span>
-            //               <span className="text-gray-300">{comment.text}</span>
-            //               <span className="ml-auto text-gray-500">
-            //                 {formatTimeAgo(comment.timestamp)}
-            //               </span>
-            //             </div>
-            //           ))}
-            //           {postComments.length > 4 && (
-            //             <p className="text-[11px] text-gray-500">View all {postComments.length} comments</p>
-            //           )}
-            //         </div>
-            //       )}
-
-            //       <div className="flex gap-2">
-            //         <Input
-            //           value={draft}
-            //           onChange={(event) => handleDraftChange(post.id, event.target.value)}
-            //           placeholder="Add a comment..."
-            //           className="bg-gray-950 border border-gray-800 text-xs"
-            //         />
-            //         <Button
-            //           type="button"
-            //           variant="ghost"
-            //           className="text-blue-400 hover:text-blue-300"
-            //           disabled={!draft.trim()}
-            //           onClick={() => handleAddComment(post.id)}
-            //         >
-            //           Post
-            //         </Button>
-            //       </div>
-            //     </footer>
-            //   </article>
             );
           })}
 
