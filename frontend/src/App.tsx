@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { HomePage } from "./pages/HomePage";
@@ -22,22 +22,6 @@ type CurrentUser = {
   following: number;
 };
 
-const fileToBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        resolve(result);
-      } else {
-        reject(new Error("Unable to read file"));
-      }
-    };
-    reader.onerror = () => {
-      reject(reader.error ?? new Error("Failed to read file"));
-    };
-    reader.readAsDataURL(file);
-  });
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>("login");
@@ -48,8 +32,6 @@ export default function App() {
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [feedReloadKey, setFeedReloadKey] = useState(0);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCurrentUser = useCallback(
     async (token: string) => {
@@ -178,41 +160,6 @@ export default function App() {
     []
   );
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !authToken) return;
-    try {
-      setIsUploading(true);
-      const base64 = await fileToBase64(file);
-      const res = await fetch(`${LOCAL_URL}/post/make-post`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ imgData: base64 }),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to upload post");
-      }
-      setFeedReloadKey((key) => key + 1);
-      if (selectedProfile && currentUser && selectedProfile.id === currentUser.id) {
-        setProfileReloadKey((key) => key + 1);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Unable to upload image. Please try again.");
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
 
   const goToHome = () => {
     setCurrentView("home");
@@ -304,22 +251,6 @@ export default function App() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <Button
-              onClick={handleUploadClick}
-              variant="outline"
-              size="sm"
-              disabled={isUploading}
-              className="border-gray-700 text-white hover:bg-gray-800 hover:text-white"
-            >
-              {isUploading ? "Uploading..." : "Upload"}
-            </Button>
             <Button
               onClick={handleLogout}
               variant="ghost"

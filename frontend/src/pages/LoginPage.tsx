@@ -115,12 +115,12 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label htmlFor="identifier" className="block text-sm mb-2 text-gray-700">
-                  Username or Email
+                  Email
                 </label>
                 <Input
                   id="identifier"
                   type="text"
-                  placeholder="username or you@example.com"
+                  placeholder="you@example.com"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
