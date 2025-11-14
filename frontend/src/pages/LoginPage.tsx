@@ -36,7 +36,7 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
         }
         throw new Error(data?.message ?? "Login failed");
       }
-      sessionStorage.setItem("authToken", data.token);
+      localStorage.setItem("authToken", data.token);
       if (onLoginSuccess) {
         onLoginSuccess(data.token);
       } else {

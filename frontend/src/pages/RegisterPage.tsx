@@ -83,7 +83,7 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message ?? "Verification failed");
-      sessionStorage.setItem("authToken", data.token);
+      localStorage.setItem("authToken", data.token);
       if (onRegisterSuccess) {
         onRegisterSuccess(data.token);
       } else {

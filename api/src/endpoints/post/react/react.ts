@@ -6,7 +6,9 @@ import {getJWT, checkJWT} from "../../../utils/jwt.js";
 import {ObjectId} from "mongodb";
 
 interface RequestData {
+    postId: string;
     reaction: string;
+    removeReaction: boolean;
 }
 
 /**
@@ -18,6 +20,7 @@ interface RequestData {
  * @param req.body.reaction - string containing reaction
  */
 export default async function react(req: Request, res: Response) {
+
     try {
 
         // check JWT
@@ -29,146 +32,34 @@ export default async function react(req: Request, res: Response) {
             });
         }
 
-        // get postId
-        const {postId} = req.params;
-        if (!postId) {
-            return res.status(400).json({
-                status: "error",
-                message: "Missing post ID (Hint: must be passed as route parameter)"
-            });
-        }
-
-        // validate postId
-        if (!ObjectId.isValid(postId)) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid post ID"
-            });
-        }
-
-        // get reaction
-        let {reaction}: RequestData = req.body;
-        if (!reaction) {
-            return res.status(400).json({
-                status: "error",
-                message: "Missing reaction"
-            });
-        }
-
-        // validate reaction
-        try {
-            z.string().min(1).max(50).parse(reaction);
-        } catch (e: any) {
-            console.error(e);
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid reaction"
-            });
-        }
+        let {
+            postId,
+            reaction,
+            removeReaction,
+        }: RequestData = req.body;
 
         const db = await getDB();
         const postsColl = db.collection<DBPost>("posts");
-        const usersColl = db.collection<DBUser>("users");
-
-        const postObjectId = new ObjectId(postId);
         const userObjectId = new ObjectId(uid);
 
-        // find the post
-        const post = await postsColl.findOne({_id: postObjectId});
-        if (!post) {
-            return res.status(404).json({
-                status: "error",
-                message: "Post not found"
-            });
-        }
-
-        // check if user already has a reaction on this post
-        const existingReaction = await reactionsColl.findOne({
-            post: postObjectId,
-            user: userObjectId
-        });
-
-        if (existingReaction) {
-            if (existingReaction.reaction === reaction) { // if same reaction
-                // delete reaction in reaction document
-                await reactionsColl.deleteOne({_id: existingReaction._id});
-
-                // decrement count in post document
-                await postsColl.updateOne(
-                    {_id: postObjectId},
-                    {$inc: {[`reactions.${reaction}`]: -1}}
-                );
-
-                // decrement user reaction count
-                await usersColl.updateOne(
-                    {_id: userObjectId},
-                    {$inc: {reactions: -1}}
-                );
-
-                return res.status(200).json({
-                    status: "success",
-                    message: "Reaction removed",
-                });
-            } else { // if new reaction
-
-                const oldReaction = existingReaction.reaction;
-
-                // override old reaction to reflect new one
-                await reactionsColl.updateOne(
-                    {_id: existingReaction._id},
-                    {
-                        $set: {
-                            reaction: reaction,
-                            ctime: Date.now()
-                        }
-                    }
-                );
-
-                // update counts in post document
-                await postsColl.updateOne(
-                    {_id: postObjectId},
-                    {
-                        $inc: {
-                            [`reactions.${oldReaction}`]: -1, // TODO: should old reactions be kept or discarded?
-                            [`reactions.${reaction}`]: 1
-                        }
-                    }
-                );
-
-                return res.status(200).json({
-                    status: "success",
-                    message: "Reaction updated",
-                });
-            }
-        } else { // no existing reaction
-            // create new reaction
-            const newReaction: DBReaction = {
-                post: postObjectId,
-                user: userObjectId,
-                reaction: reaction,
-                ctime: Date.now()
-            };
-
-            await reactionsColl.insertOne(newReaction);
-
-            // increment count in post document
+        // add reaction to post
+        if (!removeReaction)
             await postsColl.updateOne(
-                {_id: postObjectId},
-                {$inc: {[`reactions.${reaction}`]: 1}}
+                { _id: new ObjectId(postId) },
+                { $addToSet: { [`reactions.${reaction}`]: userObjectId } }
+            );
+        // remove reaction from post
+        else    
+            await postsColl.updateOne(
+                { _id: new ObjectId(postId) },
+                { $pull: { [`reactions.${reaction}`]: userObjectId } }
             );
 
-            // increment user reaction count
-            await usersColl.updateOne(
-                {_id: userObjectId},
-                {$inc: {reactions: 1}}
-            );
-
-            return res.status(200).json({
-                status: "success",
-                message: "Reaction added",
-            });
-        }
-
+        return res.status(200).json({
+            status: "success",
+            message: "Reaction updated",
+        });
+        
     } catch (e: any) {
         console.error(e);
         res.status(500).json({

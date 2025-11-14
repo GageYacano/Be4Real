@@ -10,6 +10,7 @@ interface DBUser {
     passHash: string | null;
     verified: boolean;
     verifCode: string | null;
+    profileImg: string;
     posts: ObjectId[];
     followers: number;
     following: number;
@@ -22,7 +23,7 @@ interface DBPost {
     imgData: string;
     user: ObjectId;
     reactions: {
-        [key: string]: number
+        [key: string]: String[]
     };
 }
 

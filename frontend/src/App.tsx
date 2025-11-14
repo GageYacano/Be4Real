@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { HomePage } from "./pages/HomePage";
@@ -22,7 +22,6 @@ type CurrentUser = {
   following: number;
 };
 
-
 export default function App() {
   const [currentView, setCurrentView] = useState<View>("login");
   const [isLoading, setIsLoading] = useState(true);
@@ -32,35 +31,40 @@ export default function App() {
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [feedReloadKey, setFeedReloadKey] = useState(0);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
+  const [scrollPosition, setScrollPosition] = useState({
+  top: false,
+  bottom: false,
+});
+
+
+  // 👇 this is the actual scroll container
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const fetchCurrentUser = useCallback(
     async (token: string) => {
       try {
         const res = await fetch(`${LOCAL_URL}/user/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) {
-          throw new Error("Unable to load user");
-        }
+        if (!res.ok) throw new Error("Unable to load user");
+
         const json = await res.json();
         const userData = json?.user;
-        if (!userData) {
-          throw new Error("User data missing");
-        }
+        if (!userData) throw new Error("User data missing");
+
         const mapped: CurrentUser = {
           id: normalizeId(userData.id ?? userData._id ?? ""),
           username: userData.username ?? "user",
           followers: userData.followers ?? 0,
           following: userData.following ?? 0,
         };
+
         setCurrentUser(mapped);
         setSelectedProfile({ id: mapped.id, username: mapped.username });
         setCurrentView("home");
       } catch (err) {
         console.error(err);
-        sessionStorage.removeItem("authToken");
+        localStorage.removeItem("authToken");
         setAuthToken(null);
         setCurrentUser(null);
         setCurrentView("login");
@@ -77,7 +81,7 @@ export default function App() {
         await fetchCurrentUser(token);
         setAuthToken(token);
       } catch {
-        sessionStorage.removeItem("authToken");
+        localStorage.removeItem("authToken");
         setAuthToken(null);
         setCurrentUser(null);
         setCurrentView("login");
@@ -87,9 +91,9 @@ export default function App() {
     [fetchCurrentUser]
   );
 
+  // ✅ Effect 1: verify token on mount
   useEffect(() => {
-    localStorage.removeItem("authToken");
-    const token = sessionStorage.getItem("authToken");
+    const token = localStorage.getItem("authToken");
     if (!token) {
       setIsLoading(false);
       setCurrentView("login");
@@ -100,7 +104,7 @@ export default function App() {
 
   const applyToken = useCallback(
     async (token: string) => {
-      sessionStorage.setItem("authToken", token);
+      localStorage.setItem("authToken", token);
       setAuthToken(token);
       setIsLoading(true);
       await fetchCurrentUser(token);
@@ -117,7 +121,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("authToken");
+    localStorage.removeItem("authToken");
     setAuthToken(null);
     setCurrentUser(null);
     setSelectedProfile(null);
@@ -138,28 +142,21 @@ export default function App() {
     setCurrentView("home");
   };
 
-  const handleToggleFollow = useCallback(
-    (targetId: string, nextState: boolean) => {
-      setFollowingMap((prev) => {
-        const next = { ...prev };
-        if (nextState) {
-          next[targetId] = true;
-        } else {
-          delete next[targetId];
-        }
-        return next;
-      });
-      setCurrentUser((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          following: Math.max(0, prev.following + (nextState ? 1 : -1)),
-        };
-      });
-    },
-    []
-  );
-
+  const handleToggleFollow = useCallback((targetId: string, nextState: boolean) => {
+    setFollowingMap((prev) => {
+      const next = { ...prev };
+      if (nextState) next[targetId] = true;
+      else delete next[targetId];
+      return next;
+    });
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        following: Math.max(0, prev.following + (nextState ? 1 : -1)),
+      };
+    });
+  }, []);
 
   const goToHome = () => {
     setCurrentView("home");
@@ -172,6 +169,25 @@ export default function App() {
     setProfileReloadKey((key) => key + 1);
     setCurrentView("profile");
   };
+
+  // ✅ Effect 2: attach scroll listener when the scroll container exists (and when view changes)
+  useEffect(() => {
+  const el = scrollRef.current;
+  if (!el) return;
+
+  const handleScroll = () => {
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
+
+    setScrollPosition({ top: atTop, bottom: atBottom });
+  };
+
+  el.addEventListener("scroll", handleScroll, { passive: true });
+  handleScroll(); // run once to initialize
+
+  return () => el.removeEventListener("scroll", handleScroll);
+}, [currentView]);// re-attach when switching Home/Profile
 
   if (isLoading) {
     return (
@@ -262,7 +278,11 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 pb-12">
+      {/* 👇 Make this the scroll container */}
+      <main
+        ref={scrollRef}
+        className="max-w-5xl mx-auto w-full px-4 sm:px-6 pb-12 h-screen overflow-y-auto"
+      >
         {currentView === "profile" ? (
           <ProfilePage
             authToken={authToken}
@@ -276,10 +296,13 @@ export default function App() {
           />
         ) : (
           <HomePage
+            currentUserId={currentUser.id}
             authToken={authToken}
             onViewProfile={handleViewProfile}
             reloadKey={feedReloadKey}
-          />
+            scrolledTop={scrollPosition.top}
+            scrolledBottom={scrollPosition.bottom}
+        />
         )}
       </main>
     </div>

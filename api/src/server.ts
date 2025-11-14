@@ -43,7 +43,7 @@ app.post("/auth/verify-user", verifyUser);
 app.post("/auth/reset-password", resetPassword);
 app.post("/post/make-post", makePost);
 app.get("/post/get/:postId", getSinglePost);
-app.post("/post/react/:postId", react);
+app.post("/post/react", react);
 app.get("/post/get-feed", getFeed);
 app.get("/user/get/:identifier", getUser);
 app.get("/user/me", getCurrentUser)

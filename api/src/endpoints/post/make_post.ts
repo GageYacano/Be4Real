@@ -30,7 +30,6 @@ export default async function makePost(req: Request, res: Response) {
                 message: checkJWTErr.message
             });
         }
-        console.log(uid)
 
         let {
             imgData
@@ -59,6 +58,7 @@ export default async function makePost(req: Request, res: Response) {
         const usersColl = db.collection<DBUser>("users");
 
         
+        console.log(uid)
         // make sure user exists
         const userId = new ObjectId(uid);
         const user = await usersColl.findOne({_id: userId});
@@ -75,14 +75,14 @@ export default async function makePost(req: Request, res: Response) {
             imgData: imgData,
             user: userId,
             reactions: {
-                "❤️": 0,
-                "👍": 0,
-                "😂": 0,
-                "😮": 0,
-                "😢": 0,
-                "😡": 0,
-                "🔥": 0,
-                "👏": 0
+                "❤️": [],
+                "👍": [],
+                "😂": [],
+                "😮": [],
+                "😢": [],
+                "😡": [],
+                "🔥": [],
+                "👏": []
             }
         };
 

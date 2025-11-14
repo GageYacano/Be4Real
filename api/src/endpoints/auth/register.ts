@@ -57,6 +57,7 @@ export default async function register(req: Request, res: Response) {
             passHash: await bcrypt.hash(password, 10),
             verified: false,
             verifCode: null,
+            profileImg: "/assets/default-pfp.png",
             posts: [],
             followers: 0,
             following: 0,

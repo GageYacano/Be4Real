@@ -62,8 +62,7 @@ export default async function getUser(req: Request, res: Response) {
             });
         }
 
-        // assign PUBLIC user data
-        const publicUserData = {
+        return res.status(200).json({
             status: "success",
             message: "User retrieved",
             data: {
@@ -72,38 +71,14 @@ export default async function getUser(req: Request, res: Response) {
                     ctime: user.ctime,
                     username: user.username,
                     posts: user.posts,
+                    profileImg: user.profileImg,
                     followers: user.followers,
                     following: user.following,
                     reactions: user.reactions
                 }
             }
-        };
-
-        // get and check JWT to see if the target user is the same as this user
-        // get JWT
-        const {err: getJWTErr, token} = getJWT(req.headers.authorization);
-        if (getJWTErr !== null) {
-            return res.status(200).json(publicUserData);
-        }
-        // check JWT
-        const {err: checkJWTErr, uid} = await checkJWT(token);
-        if (checkJWTErr !== null) {
-            return res.status(200).json(publicUserData);
-        }
-        // check if authenticated user is same as target user
-        if (uid !== user._id?.toString()) {
-            return res.status(200).json(publicUserData);
-        }
-
-        // return private data if cases above pass
-        // TODO: Maybe don't return ALL data
-        return res.status(200).json({
-            status: "success",
-            message: "User retrieved (authenticated)",
-            data: {
-                user: user
-            }
         });
+        
     } catch (e: any) {
         console.error(e);
         res.status(500).json({
