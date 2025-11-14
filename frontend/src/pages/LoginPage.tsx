@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 const SERVER_URL = "http://bef4real.life/api";
 const LOCAL_URL = "http://localhost:3000"; 
@@ -98,26 +97,8 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex" style={{ width: '1440px', height: '1024px' }}>
-      {/* Left side - Hero Image */}
-      <div className="w-3/5 relative overflow-hidden bg-black">
-        <ImageWithFallback
-          src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=80"
-          alt="Friends enjoying authentic moments"
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
-        <div className="absolute bottom-16 left-16 text-white max-w-lg">
-          <h2 className="text-5xl mb-6">Share Your Real Life.</h2>
-          <p className="text-xl opacity-90">
-            No filters. No likes. Just you and your friends, being real.
-          </p>
-        </div>
-      </div>
-
-      {/* Right side - Login Form */}
-      <div className="w-2/5 flex items-center justify-center bg-white p-12">
-        <div className="w-full max-w-sm">
+    <div className="w-screen h-screen flex items-center justify-center bg-white">
+      <div className="w-full max-w-sm px-6">
           {/* Logo/Brand */}
           <div className="text-center mb-10">
             <h1 className="text-4xl mb-3">be4real</h1>
@@ -168,23 +149,6 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
                 disabled={loading}
               >
                 {loading ? "Signing in..." : "Sign in"}
-              </Button>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">or</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-11 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                Continue with Google
               </Button>
             </form>
           ) : (
@@ -262,7 +226,6 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
               </a>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

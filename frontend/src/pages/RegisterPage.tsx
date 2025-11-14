@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Checkbox } from "../components/ui/checkbox";
 
 interface RegisterPageProps {
@@ -15,11 +14,8 @@ const LOCAL_URL = "http://localhost:3000";
 export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPageProps) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    fullName: "",
     username: "",
-    phoneNumber: "",
     email: "",
-    birthday: "",
     agreedToTerms: false,
     password: "",
   });
@@ -112,68 +108,14 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex" style={{ width: '1440px', height: '1024px' }}>
-      {/* Left side - Hero Image */}
-      <div className="w-3/5 relative overflow-hidden bg-black">
-        <ImageWithFallback
-          src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"
-          alt="Authentic candid moments"
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
-        
-        {/* Info Content */}
-        <div className="absolute inset-0 flex flex-col justify-center left-16 max-w-lg">
-          <h2 className="text-white text-5xl mb-8">Welcome to be4real</h2>
-          
-          <div className="space-y-6 text-white">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl">
-                📸
-              </div>
-              <div>
-                <h3 className="text-xl mb-2">Random Captures</h3>
-                <p className="text-white/90">
-                  Your phone automatically takes photos at random times throughout the day. No posing, no filters.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl">
-                🎯
-              </div>
-              <div>
-                <h3 className="text-xl mb-2">Stay Authentic</h3>
-                <p className="text-white/90">
-                  You never know when the camera will snap. Just be yourself, always.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl">
-                👥
-              </div>
-              <div>
-                <h3 className="text-xl mb-2">Real Connections</h3>
-                <p className="text-white/90">
-                  See your friends' genuine moments and share your real life together.
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="w-screen h-screen flex items-center justify-center bg-white">
+      <div className="w-full max-w-sm px-6">
+        {/* Logo/Brand */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl mb-3">be4real</h1>
+          <h2 className="text-2xl mb-2 text-gray-800">Welcome to be4real</h2>
+          <p className="text-gray-600 text-lg">Create your account</p>
         </div>
-      </div>
-
-      {/* Right side - Registration Form */}
-      <div className="w-2/5 flex items-center justify-center bg-white p-12">
-        <div className="w-full max-w-sm">
-          {/* Logo/Brand */}
-          <div className="text-center mb-10">
-            <h1 className="text-4xl mb-3">be4real</h1>
-            <p className="text-gray-600 text-lg">Create your account</p>
-          </div>
 
           {/* Error */}
           {error && (
@@ -191,21 +133,6 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
           {step === 1 && (
             <form onSubmit={handleContinue} className="space-y-6">
               <div>
-                <label htmlFor="fullName" className="block text-sm mb-2 text-gray-700">
-                  Full Name
-                </label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="John Doe"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange("fullName", e.target.value)}
-                  className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
                 <label htmlFor="username" className="block text-sm mb-2 text-gray-700">
                   Username
                 </label>
@@ -215,20 +142,6 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
                   placeholder="johndoe"
                   value={formData.username}
                   onChange={(e) => handleInputChange("username", e.target.value)}
-                  className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="birthday" className="block text-sm mb-2 text-gray-700">
-                  Birthday
-                </label>
-                <Input
-                  id="birthday"
-                  type="date"
-                  value={formData.birthday}
-                  onChange={(e) => handleInputChange("birthday", e.target.value)}
                   className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                   required
                 />
@@ -377,7 +290,6 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
               </a>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );
