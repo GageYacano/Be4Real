@@ -143,6 +143,7 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
           Authorization: `Bearer ${authToken}`,
         },
       });
+
       if (!res.ok) {
         throw new Error("Unable to load feed");
       }
@@ -317,7 +318,7 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
           Your feed is empty. Share your first post!
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 w-full max-w-sm">
           {posts.map((post) => {
             const isLiked = likedPosts[post.id] ?? false;
             const heartCount = Number(post.reactions["❤️"] ?? 0);
@@ -325,103 +326,116 @@ export function HomePage({ authToken, onViewProfile, reloadKey }: HomePageProps)
             const draft = commentDrafts[post.id] ?? "";
 
             return (
-              <article key={post.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-                <header className="flex items-center gap-3 px-5 py-4">
-                  <button
-                    onClick={() => onViewProfile?.({ id: post.userId, username: post.username })}
-                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                  >
-                    <img
-                      src={post.avatar}
-                      alt={post.username}
-                      className="w-11 h-11 rounded-full object-cover border border-gray-700"
-                    />
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-white">{post.username}</p>
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">{post.postedAt}</p>
-                    </div>
-                  </button>
-                </header>
-
-                <div className="bg-black">
-                  <img
-                    src={post.image}
-                    alt={`${post.username}'s post`}
-                    className="w-full object-cover max-h-[520px]"
-                  />
-                </div>
-
-                <footer className="px-5 py-4 space-y-4">
-                  <div className="flex items-center justify-between text-gray-300">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => handleToggleLike(post.id)}
-                        className={`hover:text-white transition-colors ${isLiked ? "text-red-500" : ""}`}
-                        aria-pressed={isLiked}
-                      >
-                        <Heart className={`w-6 h-6 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
-                      </button>
-                      <button className="hover:text-white">
-                        <MessageCircle className="w-6 h-6" />
-                      </button>
-                      <button className="hover:text-white">
-                        <Send className="w-6 h-6" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm text-gray-100">
-                    <p className="font-semibold">
-                      {heartCount} {heartCount === 1 ? "like" : "likes"}
-                    </p>
-                    <div className="flex flex-wrap gap-2 text-xs text-gray-400">
-                      {Object.entries(post.reactions).map(([emoji, count]) => (
-                        <span
-                          key={emoji}
-                          className="px-3 py-1 bg-gray-800 rounded-full border border-gray-700"
-                        >
-                          {emoji} {count}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {postComments.length > 0 && (
-                    <div className="space-y-1.5 text-xs text-gray-200">
-                      {postComments.slice(-4).map((comment) => (
-                        <div key={comment.id} className="flex items-start gap-2">
-                          <span className="font-semibold text-white">You</span>
-                          <span className="text-gray-300">{comment.text}</span>
-                          <span className="ml-auto text-gray-500">
-                            {formatTimeAgo(comment.timestamp)}
-                          </span>
+                <div key={post.id} className="rounded-2xl max-w-96">
+                    <div className="h-24 flex w-full">
+                        <div className="w-10 aspect-square rounded-full">
+                            <img src={post.avatar} className="object-cover"/>
                         </div>
-                      ))}
-                      {postComments.length > 4 && (
-                        <p className="text-[11px] text-gray-500">View all {postComments.length} comments</p>
-                      )}
                     </div>
-                  )}
+                    <div className="w-96">
+                        <img src={post.image} className="object-cover"/>
+                    </div>
+                </div>
+            //     <div key={post.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                    
+            //     </div>
+            //     <article key={post.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+            //     <header className="flex items-center gap-3 px-5 py-4">
+            //       <button
+            //         onClick={() => onViewProfile?.({ id: post.userId, username: post.username })}
+            //         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            //       >
+            //         <img
+            //           src={post.avatar}
+            //           alt={post.username}
+            //           className="w-11 h-11 rounded-full object-cover border border-gray-700"
+            //         />
+            //         <div className="text-left">
+            //           <p className="text-sm font-semibold text-white">{post.username}</p>
+            //           <p className="text-xs text-gray-400 uppercase tracking-wide">{post.postedAt}</p>
+            //         </div>
+            //       </button>
+            //     </header>
 
-                  <div className="flex gap-2">
-                    <Input
-                      value={draft}
-                      onChange={(event) => handleDraftChange(post.id, event.target.value)}
-                      placeholder="Add a comment..."
-                      className="bg-gray-950 border border-gray-800 text-xs"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-blue-400 hover:text-blue-300"
-                      disabled={!draft.trim()}
-                      onClick={() => handleAddComment(post.id)}
-                    >
-                      Post
-                    </Button>
-                  </div>
-                </footer>
-              </article>
+            //     <div className="bg-black w-full max-w-sm">
+            //       <img
+            //         src={post.image}
+            //         alt={`${post.username}'s post`}
+            //         className="w-full object-cover max-h-[520px]"
+            //       />
+            //     </div>
+
+            //     <footer className="px-5 py-4 space-y-4">
+            //       <div className="flex items-center justify-between text-gray-300">
+            //         <div className="flex items-center gap-4">
+            //           <button
+            //             onClick={() => handleToggleLike(post.id)}
+            //             className={`hover:text-white transition-colors ${isLiked ? "text-red-500" : ""}`}
+            //             aria-pressed={isLiked}
+            //           >
+            //             <Heart className={`w-6 h-6 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
+            //           </button>
+            //           <button className="hover:text-white">
+            //             <MessageCircle className="w-6 h-6" />
+            //           </button>
+            //           <button className="hover:text-white">
+            //             <Send className="w-6 h-6" />
+            //           </button>
+            //         </div>
+            //       </div>
+
+            //       <div className="space-y-2 text-sm text-gray-100">
+            //         <p className="font-semibold">
+            //           {heartCount} {heartCount === 1 ? "like" : "likes"}
+            //         </p>
+            //         <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+            //           {Object.entries(post.reactions).map(([emoji, count]) => (
+            //             <span
+            //               key={emoji}
+            //               className="px-3 py-1 bg-gray-800 rounded-full border border-gray-700"
+            //             >
+            //               {emoji} {count}
+            //             </span>
+            //           ))}
+            //         </div>
+            //       </div>
+
+            //       {postComments.length > 0 && (
+            //         <div className="space-y-1.5 text-xs text-gray-200">
+            //           {postComments.slice(-4).map((comment) => (
+            //             <div key={comment.id} className="flex items-start gap-2">
+            //               <span className="font-semibold text-white">You</span>
+            //               <span className="text-gray-300">{comment.text}</span>
+            //               <span className="ml-auto text-gray-500">
+            //                 {formatTimeAgo(comment.timestamp)}
+            //               </span>
+            //             </div>
+            //           ))}
+            //           {postComments.length > 4 && (
+            //             <p className="text-[11px] text-gray-500">View all {postComments.length} comments</p>
+            //           )}
+            //         </div>
+            //       )}
+
+            //       <div className="flex gap-2">
+            //         <Input
+            //           value={draft}
+            //           onChange={(event) => handleDraftChange(post.id, event.target.value)}
+            //           placeholder="Add a comment..."
+            //           className="bg-gray-950 border border-gray-800 text-xs"
+            //         />
+            //         <Button
+            //           type="button"
+            //           variant="ghost"
+            //           className="text-blue-400 hover:text-blue-300"
+            //           disabled={!draft.trim()}
+            //           onClick={() => handleAddComment(post.id)}
+            //         >
+            //           Post
+            //         </Button>
+            //       </div>
+            //     </footer>
+            //   </article>
             );
           })}
 
