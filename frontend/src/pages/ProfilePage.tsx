@@ -40,7 +40,9 @@ function normalizeId(value: any): string {
 }
 
 const DEFAULT_AVATAR = (username?: string) =>
-  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username ?? "be4real")}`;
+  `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(
+    username ?? "be4real"
+  )}&size=128`;
 
 export function ProfilePage({
   authToken,
@@ -79,11 +81,16 @@ export function ProfilePage({
         }
 
         const normalizedId = normalizeId(rawUser.id ?? profile.id);
-        const username = rawUser.username ?? profile.username ?? `user_${normalizedId.slice(-4)}`;
+        const username =
+          rawUser.username ??
+          profile.username ??
+          `user_${normalizedId.slice(-4)}`;
         const followers = rawUser.followers ?? 0;
         const following = rawUser.following ?? 0;
         const reactions = rawUser.reactions ?? 0;
-        const rawPosts: any[] = Array.isArray(rawUser.posts) ? rawUser.posts : [];
+        const rawPosts: any[] = Array.isArray(rawUser.posts)
+          ? rawUser.posts
+          : [];
 
         let avatar = DEFAULT_AVATAR(username);
         const postImages: string[] = [];
@@ -155,9 +162,10 @@ export function ProfilePage({
       };
     }
 
-    const followingCount = isOwnProfile && currentUserFollowing !== undefined
-      ? currentUserFollowing
-      : info.following;
+    const followingCount =
+      isOwnProfile && currentUserFollowing !== undefined
+        ? currentUserFollowing
+        : info.following;
 
     return {
       posts: info.posts.length,
@@ -174,117 +182,160 @@ export function ProfilePage({
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-gray-900/70 bg-black/90 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-gray-900">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <span className="text-lg font-semibold tracking-tight">
-              {info?.username ?? profile.username ?? "Profile"}
-            </span>
-          </div>
+      {/* TOP NAV */}
+      <header className="sticky top-0 z-40 border-b border-gray-900/80 bg-black/90 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="text-white hover:bg-gray-900"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <span className="text-base font-semibold tracking-tight sm:text-lg">
+            {info?.username ?? profile.username ?? "Profile"}
+          </span>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      {/* CONTENT */}
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         {isLoading ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-8 py-16 flex flex-col items-center gap-4 text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-gray-800 bg-gray-900 px-8 py-16 text-gray-400">
+            <Loader2 className="h-8 w-8 animate-spin" />
             Loading profile...
           </div>
         ) : error ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-8 py-16 text-center text-red-400">
+          <div className="rounded-2xl border border-gray-800 bg-gray-900 px-8 py-16 text-center text-red-400">
             {error}
           </div>
         ) : info ? (
           <div className="space-y-8">
-            <section className="relative overflow-hidden rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-950 to-black px-6 py-8">
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute -right-16 top-10 h-48 w-48 rounded-full bg-purple-500/10 blur-3xl" />
-                <div className="absolute -left-10 bottom-0 h-44 w-44 rounded-full bg-blue-500/10 blur-3xl" />
-              </div>
+            {/* PROFILE HEADER */}
+            <section className="rounded-2xl border border-gray-850 bg-[#050508] px-4 py-5 sm:px-6 sm:py-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+                {/* AVATAR */}
+                <div className="flex justify-center sm:block">
+                  <img
+                    src={info.avatar}
+                    alt={info.username}
+                    className="h-18 w-18 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-full border border-gray-700 object-cover shadow-lg"
+                  />
+                </div>
 
-              <div className="relative flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left sm:gap-8">
-                <img
-                  src={info.avatar}
-                  alt={info.username}
-                  className="h-28 w-28 rounded-full object-cover border-4 border-gray-900 shadow-lg"
-                />
-                <div className="flex-1 space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                {/* NAME + BUTTON + STATS */}
+                <div className="flex-1 space-y-4">
+                  {/* Name + follow */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h1 className="text-3xl font-semibold tracking-tight text-white">{info.username}</h1>
+                      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                        {info.username}
+                      </h1>
                       {isOwnProfile ? (
-                        <p className="text-sm text-gray-400">This is your profile</p>
+                        <p className="text-xs text-gray-400 sm:text-sm">
+                          This is your profile
+                        </p>
                       ) : (
-                        <p className="text-sm text-gray-400">Explore {info.username}'s real moments</p>
+                        <p className="text-xs text-gray-400 sm:text-sm">
+                          Explore {info.username}&apos;s real moments
+                        </p>
                       )}
                     </div>
+
                     {isOwnProfile ? (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="rounded-full border border-gray-800 px-3 py-1 uppercase tracking-wide">Owner</span>
+                      <div className="flex items-center justify-start gap-2 text-[11px] text-gray-500 sm:justify-end sm:text-xs">
+                        <span className="rounded-full border border-gray-700 px-3 py-1 uppercase tracking-wide">
+                          Owner
+                        </span>
                       </div>
                     ) : (
-                      <Button
-                        onClick={handleFollowToggle}
-                        variant={isFollowing ? "outline" : "default"}
-                        className={`px-5 ${isFollowing ? "bg-transparent border-gray-600 text-gray-200" : "bg-white text-black"}`}
-                      >
-                        {isFollowing ? "Following" : "Follow"}
-                      </Button>
+                      <div className="flex justify-start sm:justify-end">
+                        <Button
+                          onClick={handleFollowToggle}
+                          variant={isFollowing ? "outline" : "default"}
+                          className={`h-9 px-4 text-sm ${
+                            isFollowing
+                              ? "bg-transparent border-gray-600 text-gray-200"
+                              : "bg-white text-black"
+                          }`}
+                        >
+                          {isFollowing ? "Following" : "Follow"}
+                        </Button>
+                      </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 text-center sm:text-left">
-                    <div className="rounded-xl border border-gray-800 bg-black/40 px-4 py-3">
-                      <p className="text-sm font-semibold text-white">{stats.posts}</p>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">Posts</p>
+                  {/* Compact stats row */}
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold">{stats.posts}</span>
+                      <span className="text-gray-400">posts</span>
                     </div>
-                    <div className="rounded-xl border border-gray-800 bg-black/40 px-4 py-3">
-                      <p className="text-sm font-semibold text-white">{stats.followers}</p>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">Followers</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold">{stats.followers}</span>
+                      <span className="text-gray-400">followers</span>
                     </div>
-                    <div className="rounded-xl border border-gray-800 bg-black/40 px-4 py-3">
-                      <p className="text-sm font-semibold text-white">{stats.following}</p>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">Following</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold">{stats.following}</span>
+                      <span className="text-gray-400">following</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <span className="text-xs uppercase tracking-wide">
+                        {stats.reactions} reactions
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-sm text-gray-400 leading-relaxed">
-                    <p>Total reactions received: <span className="font-medium text-gray-200">{stats.reactions}</span></p>
-                    {!isOwnProfile && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Following lets you see {info.username}'s updates in your home feed.
-                      </p>
+                  {/* Description / hint */}
+                  <div className="text-xs leading-relaxed text-gray-400 sm:text-sm">
+                    {!isOwnProfile ? (
+                      <>
+                        Following{" "}
+                        <span className="text-gray-200">{info.username}</span>{" "}
+                        lets you see their updates in your home feed.
+                      </>
+                    ) : (
+                      <>Share your daily be4real moments with your friends.</>
                     )}
                   </div>
                 </div>
               </div>
             </section>
 
-            <section className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Posts</h2>
-                <span className="text-xs text-gray-500">{stats.posts} total</span>
+            {/* POSTS */}
+            <section className="overflow-hidden rounded-2xl border border-gray-850 bg-[#050508]">
+              <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3 sm:px-6 sm:py-3.5">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 sm:text-sm">
+                  Posts
+                </h2>
+                <span className="text-[11px] text-gray-500 sm:text-xs">
+                  {stats.posts} total
+                </span>
               </div>
+
               {info.posts.length === 0 ? (
-                <div className="px-6 py-20 text-center text-sm text-gray-400">
+                <div className="px-6 py-14 text-center text-sm text-gray-400 sm:py-20">
                   {isOwnProfile ? (
                     <div className="space-y-3">
-                      <p className="text-base text-white">You haven't shared anything yet.</p>
-                      <p>Tap the Upload button above to post your first be4real moment.</p>
+                      <p className="text-sm text-white sm:text-base">
+                        You haven&apos;t shared anything yet.
+                      </p>
+                      <p>
+                        Tap the Upload button above to post your first be4real
+                        moment.
+                      </p>
                     </div>
                   ) : (
                     <p>No posts yet.</p>
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-[1px] bg-black/60">
+                <div className="grid grid-cols-3 gap-[1px] bg-black/80 sm:grid-cols-3 md:grid-cols-4">
                   {info.posts.map((img, index) => (
                     <div
                       key={`${info.id}-post-${index}`}
-                      className="relative aspect-square overflow-hidden bg-gray-950"
+                      className="relative aspect-square bg-gray-950"
                     >
                       <img
                         src={img}
@@ -302,4 +353,3 @@ export function ProfilePage({
     </div>
   );
 }
-
