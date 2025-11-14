@@ -112,7 +112,11 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
       <div className="w-full max-w-sm px-6">
         {/* Logo/Brand */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl mb-3">be4real</h1>
+          <h1 className="text-4xl mb-3 font-extrabold tracking-tight uppercase flex items-center gap-0 justify-center">
+            <span className="inline-block">BE</span>
+            <span className="inline-flex items-center justify-center mx-1 w-14 h-14 bg-black text-white text-5xl font-extrabold rounded-full">4</span>
+            <span className="inline-block">REAL.</span>
+          </h1>
           <h2 className="text-2xl mb-2 text-gray-800">Welcome to be4real</h2>
           <p className="text-gray-600 text-lg">Create your account</p>
         </div>
