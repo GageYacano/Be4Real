@@ -321,10 +321,6 @@ export function ProfilePage({
                       <p className="text-sm text-white sm:text-base">
                         You haven&apos;t shared anything yet.
                       </p>
-                      <p>
-                        Tap the Upload button above to post your first be4real
-                        moment.
-                      </p>
                     </div>
                   ) : (
                     <p>No posts yet.</p>
