@@ -40,20 +40,36 @@ export default async function react(req: Request, res: Response) {
 
         const db = await getDB();
         const postsColl = db.collection<DBPost>("posts");
+        const usersColl = db.collection<DBUser>("users");
         const userObjectId = new ObjectId(uid);
 
         // add reaction to post
-        if (!removeReaction)
+        if (!removeReaction) {
             await postsColl.updateOne(
                 { _id: new ObjectId(postId) },
                 { $addToSet: { [`reactions.${reaction}`]: userObjectId } }
             );
+
+            // increment count in user document
+            await usersColl.updateOne(
+                {_id: userObjectId},
+                {$inc: {[`reactions.${reaction}`]: 1}}
+            );
+        }
         // remove reaction from post
-        else    
+        else {
             await postsColl.updateOne(
                 { _id: new ObjectId(postId) },
                 { $pull: { [`reactions.${reaction}`]: userObjectId } }
             );
+
+            // decrement count in user document
+            await usersColl.updateOne(
+                {_id: userObjectId},
+                {$inc: {[`reactions.${reaction}`]: -1}}
+            );
+        }
+
 
         return res.status(200).json({
             status: "success",
