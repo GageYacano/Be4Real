@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'login.dart';
 import 'home_page.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   runApp(const MyApp());
 }
@@ -15,20 +17,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       title: 'Be4Real',
       theme: ThemeData(
         // This is the theme of your application.
-        
+
         primarySwatch: Colors.blue,
-        useMaterial3: true,   
+        useMaterial3: true,
       ),
       home: const LoginPage(),
     );
   }
 }
-
-
-
-
-
-

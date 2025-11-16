@@ -1,11 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'home_page.dart';
+import 'register_step1.dart';
 import 'forgot_password.dart';
-import 'register.dart';
-import 'google_loginpage.dart';
-import 'verify_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,74 +17,87 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _loginController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  String _errorMessage = '';
+
   bool _isLoading = false;
+  String _errorMessage = "";
+
+  static const SERVER = "http://be4real.life/api";
 
   Future<void> _login() async {
+    final email = _loginController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = "Please fill out all fields.");
+      return;
+    }
+
     setState(() {
       _isLoading = true;
-      _errorMessage = '';
+      _errorMessage = "";
     });
 
     try {
       final response = await http.post(
-        Uri.parse('http://167.99.26.82/api/auth/login'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse("$SERVER/auth/login"),
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          'email': _loginController.text.trim(),
-          'password': _passwordController.text.trim(),
+          "email": email,
+          "password": password,
         }),
       );
 
+      //print("RAW LOGIN RESPONSE: ${response.body}");
+
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
-        //User is verified and got a token
-        if (data['token'] != null) {
-          // (Optional) store token using flutter_secure_storage
-          // final storage = FlutterSecureStorage();
-          // await storage.write(key: 'auth_token', value: data['token']);
-          print("user is valid");
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
-          }
-          return;
-        }
+      if (response.statusCode != 200 || data["token"] == null) {
+        setState(
+          () => _errorMessage = data["message"] ?? "Invalid credentials.",
+        );
+        return;
+      }
 
-        // If neither token nor verification needed, unexpected case
-        setState(() {
-          _errorMessage = 'Unexpected response from server.';
-        });
-      } else {
-        if (data['needsVerification'] == true) {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VerifyPage(
-                    email: _loginController.text,
-                    page: "Login"), //email: _loginController.text
-              ),
-            );
-          }
-          //return;
-        }
-        setState(() {
-          _errorMessage = data['message'] ??
-              'Login failed (${response.statusCode}). Please try again.';
-        });
+      final token = data["token"];
+
+      final meRes = await http.get(
+        Uri.parse("$SERVER/user/me"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      //print("ME RESPONSE: ${meRes.body}");
+
+      final meJson = jsonDecode(meRes.body);
+      final user = meJson["user"];
+
+      if (meRes.statusCode != 200 || user == null) {
+        setState(() => _errorMessage = "Unable to load user profile.");
+        return;
       }
+
+      final userId = user["id"];
+      final username = user["username"] ?? "";
+
+      // SAVE SESSION
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("authToken", token);
+      await prefs.setString("currentUserId", userId);
+      await prefs.setString("username", username);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomePage(
+            authToken: token,
+            currentUserId: userId,
+          ),
+        ),
+      );
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Network error. Please check your connection.';
-      });
+      print("LOGIN ERROR: $e");
+      setState(() => _errorMessage = "Network error. Try again.");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -92,45 +105,29 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'be4real',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
+                "be4real",
                 textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 10),
               const Text(
-                'Welcome back',
-                style: TextStyle(
-                  fontSize: 20,
-                ),
+                "Welcome back",
                 textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.black87),
               ),
               const SizedBox(height: 30),
-              // const Text(
-              //   'Email/Username',
-              //   style: TextStyle(
-              //     fontSize: 14,
-              //   ),
-              //   //textAlign: TextAlign.center,
-              // ),
-              // const SizedBox(height: 3),
               TextField(
                 controller: _loginController,
                 decoration: InputDecoration(
-                  labelText: 'Email/Username',
-                  // filled: true,
-                  // fillColor: Colors.grey[99],
+                  labelText: "Email",
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15.0),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                 ),
               ),
@@ -139,160 +136,88 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Password',
-                  // filled: true,
-                  // fillColor: Colors.grey[99],
+                  labelText: "Password",
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15.0),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                 ),
               ),
-              ////////////
-              const SizedBox(height: 1),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const ForgotPasswordPage()),
-                  );
-                },
-                child: const Text(
-                  "Forgot password?",
-                  style: TextStyle(
-                    fontSize: 14,
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordPage()),
+                    );
+                  },
+                  child: const Text(
+                    "Forgot password?",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
-                  textAlign: TextAlign.right,
                 ),
               ),
-              ///////////////////
-              const SizedBox(height: 24),
+              const SizedBox(height: 25),
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15.0),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator()
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        'Login',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
+                        "Sign in",
+                        style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
               ),
-              const SizedBox(height: 35),
-              //sign in with gmail option
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 1.0,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(
-                      "or",
-                      style: TextStyle(fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 1.0,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 35),
-              //filler space for gmail login spot
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const GoogleLoginPage()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15.0),
-                  ),
-                  side: BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black,
-                        ),
-                      ),
-              ),
-              //dont have an account register now option
-              const SizedBox(height: 35),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => RegisterPage()),
-                  );
-                },
-                child: Center(
-                  child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(color: Colors.black),
-                      children: <TextSpan>[
-                        TextSpan(
-                          text: "Don't have an account?",
-                          style: TextStyle(
-                            fontSize: 16,
-                          ),
-                        ),
-                        TextSpan(
-                          text: " Sign up",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               if (_errorMessage.isNotEmpty)
                 Text(
                   _errorMessage,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 14,
-                  ),
                   textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
                 ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Don't have an account? ",
+                    style: TextStyle(fontSize: 16, color: Colors.black87),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const RegisterStep1Page()),
+                      );
+                    },
+                    child: const Text(
+                      "Sign up",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _loginController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 }
