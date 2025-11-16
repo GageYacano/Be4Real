@@ -6,6 +6,7 @@ const LOCAL_URL = "http://localhost:3000";
 interface PostProps {
   postId: string;
   uid: string;
+  userId: string;
   username: string;
   profile: string;
   image: string;
@@ -15,7 +16,13 @@ interface PostProps {
   };
 }
 
-function Post({ data }: { data: PostProps }) {
+function Post({
+  data,
+  onViewProfile,
+}: {
+  data: PostProps;
+  onViewProfile?: (profile: { id: string; username?: string }) => void;
+}) {
   const [reactions, setReactions] = useState(data.reactions);
 
   const handleReact = async (emoji: string) => {
@@ -52,17 +59,30 @@ function Post({ data }: { data: PostProps }) {
     <div key={data.postId}>
       <div className="rounded-2xl outline-gray-700 outline-1 overflow-hidden">
         <div className="flex justify-between items-center">
+          <button
+            type="button"
+            onClick={() =>
+              onViewProfile?.({ id: data.userId, username: data.username })
+            }
+            className="h-14 px-3 flex gap-3 items-center w-full text-left hover:bg-white/5 transition-colors"
+          >
+            <div className="w-10 flex-none aspect-square rounded-full outline-gray-700 outline-1 overflow-hidden">
+              <img
+                src={data.profile}
+                className="object-cover w-full h-full"
+                alt={`${data.username} avatar`}
+              />
+            </div>
             <div>
-                <div className="h-14 p-3 flex gap-3 items-center w-full">
-                <div className="w-10 flex-none aspect-square rounded-full outline-gray-700 outline-1 overflow-hidden">
-                    <img src={data.profile} className="object-cover w-full h-full" />
-                </div>
-                <div className="font-semibold text-white">{data.username}</div>
-                </div>
+              <div className="font-semibold text-white leading-tight">
+                {data.username}
+              </div>
+              <div className="text-xs text-gray-500">{data.time} ago</div>
             </div>
-            <div className="text-sm text-gray-400 px-4">
-                {data.time} ago
-            </div>
+          </button>
+          <div className="text-sm text-gray-400 px-4 hidden sm:block">
+            {data.time} ago
+          </div>
         </div>
         <div className="aspect-square">
           <img src={data.image} className="object-cover w-full h-full" />
