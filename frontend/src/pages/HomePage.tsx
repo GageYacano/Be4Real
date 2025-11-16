@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Post, PostProps } from "../components/Post";
 
-const SERVER_URL = "http://bef4real.life/api";
 const LOCAL_URL = "http://localhost:3000";
 
 interface HomePageProps {
@@ -72,7 +71,8 @@ export function HomePage({
   const oldestId = () => posts[posts.length - 1]?.postId ?? null; // for &before=
 
   const fetchUser = useCallback(
-    async (userId: string): Promise<FeedUser> => {
+    async (rawUserId: string): Promise<FeedUser> => {
+      const userId = normalizeId(rawUserId);
       const cache = userCacheRef.current;
       if (cache.has(userId)) return cache.get(userId)!;
 
@@ -96,7 +96,8 @@ export function HomePage({
 
   const mapRawToPost = useCallback(
     async (raw: any): Promise<PostProps> => {
-      const user = await fetchUser(raw.user);
+      const normalizedUserId = normalizeId(raw.user);
+      const user = await fetchUser(normalizedUserId);
       const reactions: Record<string, Set<string>> = {};
       for (const emoji in (raw.reactions ?? {})) {
         reactions[emoji] = new Set(raw.reactions[emoji]);
@@ -107,6 +108,7 @@ export function HomePage({
         postId: id,
         profile: user.profileImg,
         username: user.username,
+        userId: user.id,
         image: raw.imgData,
         time: formatTimeAgo(raw.ctime),
         reactions,
@@ -230,7 +232,11 @@ export function HomePage({
       ) : (
         <div className="space-y-6">
           {posts.map((post) => (
-            <Post key={post.postId} data={post} />
+            <Post
+              key={post.postId}
+              data={post}
+              onViewProfile={onViewProfile}
+            />
           ))}
         </div>
       )}

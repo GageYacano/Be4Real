@@ -98,7 +98,7 @@ export function ProfilePage({
         const postIds = rawPosts.map(normalizeId).filter(Boolean);
         for (const postId of postIds) {
           try {
-            const postRes = await fetch(`${LOCAL_URL}/post/get/me`, {
+            const postRes = await fetch(`${LOCAL_URL}/post/get/${postId}`, {
               headers: {
                 Authorization: `Bearer ${authToken}`,
               },
