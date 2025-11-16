@@ -53,7 +53,7 @@ export default async function react(req: Request, res: Response) {
             // increment count in user document
             await usersColl.updateOne(
                 {_id: userObjectId},
-                {$inc: {[`reactions.${reaction}`]: 1}}
+                {$inc: {reactions: 1}}
             );
         }
         // remove reaction from post
@@ -66,7 +66,7 @@ export default async function react(req: Request, res: Response) {
             // decrement count in user document
             await usersColl.updateOne(
                 {_id: userObjectId},
-                {$inc: {[`reactions.${reaction}`]: -1}}
+                {$inc: {reactions: -1}}
             );
         }
 
