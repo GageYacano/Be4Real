@@ -14,8 +14,17 @@ const client = new MongoClient(uri, {
 });
 
 let db: Db;
+let testDb: Db | null = null;
+
+function setTestDB(mockDb: Db | null) {
+    testDb = mockDb;
+}
 
 async function getDB() {
+    if (process.env.ENV === 'TESTING' && testDb) {
+        return testDb;
+    }
+
     if (!db) {
         await client.connect();
         db = client.db("Be4RealDB");
@@ -24,5 +33,6 @@ async function getDB() {
 }
 
 export {
-    getDB
+    getDB,
+    setTestDB
 }

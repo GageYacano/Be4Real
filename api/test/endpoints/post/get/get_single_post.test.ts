@@ -1,7 +1,8 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import type { Request, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import getSinglePost from '../../../../src/endpoints/post/get/get_single_post.js';
+import { setTestDB } from '../../../../src/utils/mongo.js';
 
 describe('GET /post/get/:postId', () => {
   let mockRequest: Partial<Request>;
@@ -11,6 +12,9 @@ describe('GET /post/get/:postId', () => {
   let mockDb: any;
 
   beforeEach(() => {
+    // Set ENV=TESTING
+    process.env.ENV = 'TESTING';
+
     mockJson = jest.fn();
     mockStatus = jest.fn();
 
@@ -25,16 +29,22 @@ describe('GET /post/get/:postId', () => {
 
     mockStatus.mockReturnValue(mockResponse);
 
-    // Create mock database
     mockDb = {
       collection: jest.fn(),
     };
 
+    setTestDB(mockDb as any);
+
     jest.clearAllMocks();
   });
 
-  // postId is missing test
+  afterEach(() => {
+    setTestDB(null);
+    delete process.env.ENV;
+  });
+
   it('should return 400 if postId is missing', async () => {
+
     mockRequest.params = {};
 
     await getSinglePost(mockRequest as Request, mockResponse as Response);
@@ -69,7 +79,7 @@ describe('GET /post/get/:postId', () => {
       findOne: mockFindOne,
     });
 
-    await getSinglePost(mockRequest as Request, mockResponse as Response, mockDb);
+    await getSinglePost(mockRequest as Request, mockResponse as Response);
 
     expect(mockStatus).toHaveBeenCalledWith(404);
     expect(mockJson).toHaveBeenCalledWith({
@@ -97,7 +107,7 @@ describe('GET /post/get/:postId', () => {
       findOne: mockFindOne,
     });
 
-    await getSinglePost(mockRequest as Request, mockResponse as Response, mockDb);
+    await getSinglePost(mockRequest as Request, mockResponse as Response);
 
     expect(mockStatus).toHaveBeenCalledWith(200);
     expect(mockJson).toHaveBeenCalledWith({
