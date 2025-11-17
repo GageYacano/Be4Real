@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
-import register from "../../../src/endpoints/auth/register"; // Adjust path as needed
+import { jest, describe, test, beforeEach, expect } from '@jest/globals';
 
-// Mock the dependencies
-jest.mock("../../utils/mongo.js");
-jest.mock("bcrypt");
+const { default: register } = await import("../../../src/endpoints/auth/register.js");
 
 describe("Register Function", () => {
     let mockReq: Partial<Request>;

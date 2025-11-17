@@ -1,10 +1,7 @@
 import { Request, Response } from "express";
-import login from "../../../src/endpoints/auth/login"; // Adjust path as needed
+import { jest, describe, test, beforeEach, expect } from '@jest/globals';
 
-// Mock the dependencies
-jest.mock("../../utils/mongo.js");
-jest.mock("../../utils/jwt.js");
-jest.mock("bcrypt");
+const { default: login } = await import("../../../src/endpoints/auth/login.js");
 
 describe("Login Function", () => {
     let mockReq: Partial<Request>;

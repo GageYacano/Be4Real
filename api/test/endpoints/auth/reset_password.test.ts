@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
-import resetPassword from "../../../src/endpoints/auth/reset_password.js"; // Adjust path as needed
+import { jest, describe, test, beforeEach, expect } from '@jest/globals';
 
-// Mock the dependencies
-jest.mock("../../utils/mongo.js");
-jest.mock("bcrypt");
+const { default: resetPassword } = await import("../../../src/endpoints/auth/reset_password.js");
 
 describe("Reset Password Function", () => {
     let mockReq: Partial<Request>;
