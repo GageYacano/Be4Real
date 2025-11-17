@@ -17,6 +17,12 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetStage, setResetStage] = useState<"request" | "confirm">("request");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -96,6 +102,128 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
     }
   }
 
+  async function handleSendResetCode(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const targetEmail = (resetEmail || identifier).trim();
+    if (!/@/.test(targetEmail)) {
+      setError("Please enter a valid email to reset your password.");
+      return;
+    }
+    try {
+      setResetLoading(true);
+      await fetch(`${LOCAL_URL}/auth/send-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      setResetEmail(targetEmail);
+      setResetStage("confirm");
+    } catch (err: any) {
+      setError(err?.message ?? "Unable to send reset code");
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!resetEmail || !resetCode || !resetPassword) {
+      setError("Please fill email, code, and new password.");
+      return;
+    }
+    try {
+      setResetLoading(true);
+      const res = await fetch(`${LOCAL_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: resetEmail.trim(),
+          code: resetCode.trim(),
+          newPassword: resetPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message ?? "Unable to reset password");
+      setShowReset(false);
+      setResetStage("request");
+      setResetCode("");
+      setResetPassword("");
+      setError("Password reset! Please sign in with your new password.");
+    } catch (err: any) {
+      setError(err?.message ?? "Unable to reset password");
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  const resetForm =
+    resetStage === "request" ? (
+      <form onSubmit={handleSendResetCode} className="space-y-6">
+        <div>
+          <label htmlFor="reset-email" className="block text-sm mb-2 text-gray-700">
+            Email
+          </label>
+          <Input
+            id="reset-email"
+            type="email"
+            placeholder="you@example.com"
+            value={resetEmail}
+            onChange={(e) => setResetEmail(e.target.value)}
+            className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
+            required
+          />
+        </div>
+        <Button
+          type="submit"
+          className="w-full h-11 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors"
+          disabled={resetLoading}
+        >
+          {resetLoading ? "Sending..." : "Send reset code"}
+        </Button>
+      </form>
+    ) : (
+      <form onSubmit={handleResetPassword} className="space-y-6">
+        <div>
+          <label htmlFor="reset-code" className="block text-sm mb-2 text-gray-700">
+            Verification Code
+          </label>
+          <Input
+            id="reset-code"
+            type="text"
+            placeholder="000000"
+            value={resetCode}
+            onChange={(e) => setResetCode(e.target.value)}
+            className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors text-center tracking-widest"
+            maxLength={6}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="reset-password" className="block text-sm mb-2 text-gray-700">
+            New Password
+          </label>
+          <Input
+            id="reset-password"
+            type="password"
+            placeholder="••••••••"
+            value={resetPassword}
+            onChange={(e) => setResetPassword(e.target.value)}
+            className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
+            required
+          />
+        </div>
+        <Button
+          type="submit"
+          className="w-full h-11 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors"
+          disabled={resetLoading}
+        >
+          {resetLoading ? "Resetting..." : "Reset password"}
+        </Button>
+      </form>
+    );
+
   return (
     <div className="w-screen h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-sm px-6">
@@ -115,7 +243,7 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
           )}
 
           {/* Login Form */}
-          {!showCodeInput ? (
+          {!showCodeInput && !showReset ? (
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label htmlFor="identifier" className="block text-sm mb-2 text-gray-700">
@@ -154,7 +282,38 @@ export function LoginPage({ onSwitchToRegister, onLoginSuccess }: LoginPageProps
               >
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
+
+              <button
+                type="button"
+                className="text-sm text-gray-600 hover:text-black"
+                onClick={() => {
+                  setShowReset(true);
+                  setResetStage("request");
+                  setResetEmail(identifier);
+                  setError(null);
+                }}
+              >
+                Forgot password?
+              </button>
             </form>
+          ) : showReset ? (
+            <div className="space-y-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReset(false);
+                  setResetStage("request");
+                  setResetEmail("");
+                  setResetCode("");
+                  setResetPassword("");
+                  setError(null);
+                }}
+                className="text-sm text-gray-600 hover:text-black flex items-center gap-2"
+              >
+                ← Back to login
+              </button>
+              {resetForm}
+            </div>
           ) : (
             <form onSubmit={handleVerifyCode} className="space-y-6">
               <div>
