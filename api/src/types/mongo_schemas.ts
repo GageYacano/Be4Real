@@ -35,4 +35,4 @@ interface DBReaction {
     ctime: number;
 }
 
-export { DBUser, DBPost, DBReaction };
+export type { DBUser, DBPost, DBReaction };

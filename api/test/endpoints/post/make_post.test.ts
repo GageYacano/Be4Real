@@ -188,7 +188,7 @@ describe('POST /post/make-post', () => {
 
     // Verify post was inserted
     expect(mockInsertOne).toHaveBeenCalled();
-    const insertedPost = mockInsertOne.mock.calls[0][0];
+    const insertedPost: any = mockInsertOne.mock.calls[0][0];
     expect(insertedPost.imgData).toBe('data:image/png;base64,abc123');
     expect(insertedPost.user).toEqual(userId);
     expect(insertedPost.reactions).toBeDefined();

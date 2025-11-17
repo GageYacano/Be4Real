@@ -110,11 +110,13 @@ function getJWT(authHeader: string | undefined): GetJWTResult {
 }
 
 export {
-    CheckJwtResult,
-    CheckRefreshJWTResult,
-    GetJWTResult,
     createJWT,
     checkJWT,
     checkAndRefreshJWT,
     getJWT
-}
+};
+export type {
+    CheckJwtResult,
+    CheckRefreshJWTResult,
+    GetJWTResult
+};
