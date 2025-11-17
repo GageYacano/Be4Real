@@ -13,17 +13,12 @@ interface ProfilePageProps {
   };
   onBack: () => void;
   isOwnProfile: boolean;
-  isFollowing: boolean;
-  onToggleFollow: (targetId: string, nextState: boolean) => void;
   reloadKey: number;
-  currentUserFollowing?: number;
 }
 
 type ProfileInfo = {
   id: string;
   username: string;
-  followers: number;
-  following: number;
   reactions: number;
   avatar: string;
   posts: string[];
@@ -49,13 +44,9 @@ export function ProfilePage({
   profile,
   onBack,
   isOwnProfile,
-  isFollowing,
-  onToggleFollow,
   reloadKey,
-  currentUserFollowing,
 }: ProfilePageProps) {
   const [info, setInfo] = useState<ProfileInfo | null>(null);
-  const [followersDisplay, setFollowersDisplay] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,8 +76,6 @@ export function ProfilePage({
           rawUser.username ??
           profile.username ??
           `user_${normalizedId.slice(-4)}`;
-        const followers = rawUser.followers ?? 0;
-        const following = rawUser.following ?? 0;
         const reactions = rawUser.reactions ?? 0;
         const rawPosts: any[] = Array.isArray(rawUser.posts)
           ? rawUser.posts
@@ -121,8 +110,6 @@ export function ProfilePage({
           setInfo({
             id: normalizedId,
             username,
-            followers,
-            following,
             reactions,
             avatar,
             posts: postImages,
@@ -146,39 +133,19 @@ export function ProfilePage({
     };
   }, [authToken, profile.id, profile.username, reloadKey]);
 
-  useEffect(() => {
-    if (info) {
-      setFollowersDisplay(info.followers + (isFollowing ? 1 : 0));
-    }
-  }, [info, isFollowing]);
-
   const stats = useMemo(() => {
     if (!info) {
       return {
         posts: 0,
-        followers: "0",
-        following: "0",
         reactions: "0",
       };
     }
 
-    const followingCount =
-      isOwnProfile && currentUserFollowing !== undefined
-        ? currentUserFollowing
-        : info.following;
-
     return {
       posts: info.posts.length,
-      followers: followersDisplay.toLocaleString(),
-      following: followingCount.toLocaleString(),
       reactions: info.reactions.toLocaleString(),
     };
-  }, [info, followersDisplay, isOwnProfile, currentUserFollowing]);
-
-  const handleFollowToggle = () => {
-    if (!info) return;
-    onToggleFollow(info.id, !isFollowing);
-  };
+  }, [info]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -243,27 +210,7 @@ export function ProfilePage({
                       )}
                     </div>
 
-                    {isOwnProfile ? (
-                      <div className="flex items-center justify-start gap-2 text-[11px] text-gray-500 sm:justify-end sm:text-xs">
-                        <span className="rounded-full border border-gray-700 px-3 py-1 uppercase tracking-wide">
-                          Owner
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex justify-start sm:justify-end">
-                        <Button
-                          onClick={handleFollowToggle}
-                          variant={isFollowing ? "outline" : "default"}
-                          className={`h-9 px-4 text-sm ${
-                            isFollowing
-                              ? "bg-transparent border-gray-600 text-gray-200"
-                              : "bg-white text-black"
-                          }`}
-                        >
-                          {isFollowing ? "Following" : "Follow"}
-                        </Button>
-                      </div>
-                    )}
+                    {/* Owner badge removed per request */}
                   </div>
 
                   {/* Compact stats row */}
@@ -272,17 +219,9 @@ export function ProfilePage({
                       <span className="font-semibold">{stats.posts}</span>
                       <span className="text-gray-400">posts</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold">{stats.followers}</span>
-                      <span className="text-gray-400">followers</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold">{stats.following}</span>
-                      <span className="text-gray-400">following</span>
-                    </div>
                     <div className="flex items-center gap-1.5 text-gray-400">
                       <span className="text-xs uppercase tracking-wide">
-                        {stats.reactions} reactions
+                        <span className="font-semibold text-white">{stats.reactions}</span> reactions
                       </span>
                     </div>
                   </div>
@@ -290,11 +229,7 @@ export function ProfilePage({
                   {/* Description / hint */}
                   <div className="text-xs leading-relaxed text-gray-400 sm:text-sm">
                     {!isOwnProfile ? (
-                      <>
-                        Following{" "}
-                        <span className="text-gray-200">{info.username}</span>{" "}
-                        lets you see their updates in your home feed.
-                      </>
+                      <span>Viewing {info.username}&apos;s real moments.</span>
                     ) : (
                       <>Share your daily be4real moments with your friends.</>
                     )}

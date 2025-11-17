@@ -53,6 +53,9 @@ app.use((_, res) => res.status(404).json({
     status: "error", 
     message: "Not found" 
 }));
+app.set("etag", false);
+app.set("lastModified", false);
+
 
 // setup database indexes
 setupIndexes().catch(console.error);
