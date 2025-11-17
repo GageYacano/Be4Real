@@ -1,3 +1,5 @@
+//
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -32,78 +34,46 @@ class _HomePageState extends State<HomePage> {
   List<Post> posts = [];
   bool loading = true;
   String? error;
-  Timer? _autoPostTimer;
-  final Random _rng = Random();
 
-  int index = 0; // 0 = feed, 1 = profile
+  // pagination
+  String? lastPostId; // used for loading older posts
+  bool hasMore = true; // whether more exists on server
+  bool isLoadingMore = false;
 
-  // persistent profile with key so we can tell it to refresh
+  final ScrollController _scrollController = ScrollController();
+
+  // bottom nav + profile
+  int index = 0;
   late final ProfilePage _profilePage;
   final GlobalKey<ProfilePageState> _profileKey = GlobalKey<ProfilePageState>();
-
-  // cache for public profiles (so they don't rebuild every time)
   final Map<String, PublicProfilePage> _publicProfileCache = {};
 
   @override
   void initState() {
     super.initState();
 
-    print("HomePage initState called!");
-
-    // Create once with key
     _profilePage = ProfilePage(key: _profileKey);
 
-    fetchFeed();
+    fetchFeed(); // initial load
 
-    // Pass context so camera can open
+    // infinite scroll listener
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >
+          _scrollController.position.maxScrollExtent - 200) {
+        loadMorePosts();
+      }
+    });
+
+    // enable autopost
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AutoPostService().start(context);
     });
-    //AutoPostService().start(context);
-    //_startRandomPostingLoop();
   }
-
-  // void _startRandomPostingLoop() {
-  //   // Start immediately
-  //   _scheduleNextPost();
-  // }
-
-  // void _scheduleNextPost() {
-  //   // random number between 5 sec and 60 sec
-  //   int nextDelay = _rng.nextInt(55) + 5; // results in 5–60 seconds
-  //   print("Next auto-picture in $nextDelay seconds...");
-
-  //   _autoPostTimer?.cancel();
-  //   _autoPostTimer = Timer(Duration(seconds: nextDelay), () async {
-  //     // Take + Upload
-  //     print("Taking automatic picture...");
-  //     bool ok =
-  //         await CameraService.autoCaptureAndUpload(context, widget.authToken);
-
-  //     if (ok) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("Picture uploaded successfully!")),
-  //       );
-  //     } else {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("Failed to upload picture.")),
-  //       );
-  //     }
-
-  //     if (ok) {
-  //       print("Auto post uploaded successfully!");
-  //     } else {
-  //       print("Auto post failed.");
-  //     }
-
-  //     // Schedule the next one
-  //     _scheduleNextPost();
-  //   });
-  // }
 
   // -------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------
+
   String cleanBase64(String raw) {
     final idx = raw.indexOf("base64,");
     return idx != -1 ? raw.substring(idx + 7) : raw;
@@ -112,20 +82,16 @@ class _HomePageState extends State<HomePage> {
   String dicebearURL(String username) {
     final seed = Uri.encodeComponent(username);
     return "https://api.dicebear.com/7.x/avataaars/png?seed=$seed&size=128";
-    // if you want the same avatar service as before
   }
 
   String resolveProfileAvatar(String raw, String username) {
     if (raw.isEmpty || raw == "null") return dicebearURL(username);
     if (raw.startsWith("http")) return raw;
-    if (raw.startsWith("/assets") || raw.contains("default")) {
-      return dicebearURL(username);
-    }
-    return raw;
+    return dicebearURL(username);
   }
 
   // -------------------------------------------------------------
-  // Fetch user info for each post
+  // Fetch user info
   // -------------------------------------------------------------
   Future<Map<String, String>> fetchUserInfo(String uid) async {
     try {
@@ -147,67 +113,84 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Load Feed
+  // Parse posts (shared by fetchFeed + loadMorePosts)
+  // -------------------------------------------------------------
+  Future<List<Post>> parsePosts(List rawPosts) async {
+    List<Post> loaded = [];
+
+    for (final p in rawPosts) {
+      final uid = p["user"];
+      final userInfo = await fetchUserInfo(uid);
+
+      final avatar = resolveProfileAvatar(
+        userInfo["profileImg"]!,
+        userInfo["username"]!,
+      );
+
+      // parse reactions
+      final rawReactions = p["reactions"] ?? {};
+      Map<String, int> reactionCounts = {};
+      Set<String> selectedByMe = {};
+
+      rawReactions.forEach((emoji, users) {
+        List<String> userIds = [];
+
+        if (users is List) userIds = List<String>.from(users);
+        if (users is Map) {
+          userIds = users.values.map((e) => e.toString()).toList();
+        }
+
+        reactionCounts[emoji] = userIds.length;
+
+        if (widget.currentUserId != null &&
+            userIds.contains(widget.currentUserId)) {
+          selectedByMe.add(emoji);
+        }
+      });
+
+      loaded.add(
+        Post(
+          postId: p["postId"] ?? p["_id"],
+          userId: uid,
+          username: userInfo["username"]!,
+          profileImg: avatar,
+          image: p["imgData"] ?? "",
+          time: formatTime(p["ctime"]),
+          reactionList: reactionCounts,
+          userReactions: selectedByMe,
+        ),
+      );
+    }
+
+    return loaded;
+  }
+
+  // -------------------------------------------------------------
+  // Load Feed (first page)
   // -------------------------------------------------------------
   Future<void> fetchFeed() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      hasMore = true;
+      lastPostId = null;
+    });
 
     try {
       final res = await http.get(
-        Uri.parse("$SERVER/post/get-feed?limit=100"),
+        Uri.parse("$SERVER/post/get-feed?limit=10"),
         headers: {"Authorization": "Bearer ${widget.authToken}"},
       );
 
       final body = jsonDecode(res.body);
       final rawPosts = body["data"]["posts"] as List;
 
-      List<Post> loaded = [];
+      final loaded = await parsePosts(rawPosts);
 
-      for (final p in rawPosts) {
-        final uid = p["user"];
-        final userInfo = await fetchUserInfo(uid);
-
-        final avatar = resolveProfileAvatar(
-          userInfo["profileImg"]!,
-          userInfo["username"]!,
-        );
-
-        // Parse reactions
-        final rawReactions = p["reactions"] ?? {};
-        Map<String, int> reactionCounts = {};
-        Set<String> selectedByMe = {};
-
-        rawReactions.forEach((emoji, users) {
-          List<String> userIds = [];
-
-          if (users is List) userIds = List<String>.from(users);
-          if (users is Map) {
-            userIds = users.values.map((e) => e.toString()).toList();
-          }
-
-          reactionCounts[emoji] = userIds.length;
-
-          if (widget.currentUserId != null &&
-              userIds.contains(widget.currentUserId)) {
-            selectedByMe.add(emoji);
-          }
-        });
-
-        loaded.add(
-          Post(
-            postId: p["_id"],
-            userId: uid,
-            username: userInfo["username"]!,
-            profileImg: avatar,
-            image: p["imgData"] ?? "",
-            time: formatTime(p["ctime"]),
-            reactionList: reactionCounts,
-            userReactions: selectedByMe,
-          ),
-        );
-      }
-
-      setState(() => posts = loaded);
+      setState(() {
+        posts = loaded;
+        if (posts.isNotEmpty) lastPostId = posts.last.postId;
+        hasMore = rawPosts.length == 10;
+      });
     } catch (e) {
       setState(() => error = "Error: $e");
     } finally {
@@ -216,7 +199,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Time Formatting
+  // Load more (infinite scroll)
+  // -------------------------------------------------------------
+  Future<void> loadMorePosts() async {
+    if (isLoadingMore || !hasMore || lastPostId == null) return;
+
+    setState(() => isLoadingMore = true);
+
+    try {
+      final res = await http.get(
+        Uri.parse("$SERVER/post/get-feed?limit=10&before=$lastPostId"),
+        headers: {"Authorization": "Bearer ${widget.authToken}"},
+      );
+
+      final body = jsonDecode(res.body);
+      final rawPosts = body["data"]["posts"] as List;
+
+      final more = await parsePosts(rawPosts);
+
+      setState(() {
+        posts.addAll(more);
+        if (more.isNotEmpty) lastPostId = more.last.postId;
+        hasMore = rawPosts.length == 10;
+      });
+    } finally {
+      setState(() => isLoadingMore = false);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // Time formatting
   // -------------------------------------------------------------
   String formatTime(int timestamp) {
     final diff = DateTime.now().millisecondsSinceEpoch - timestamp;
@@ -230,7 +242,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Toggle Reaction
+  // Toggle reaction
   // -------------------------------------------------------------
   Future<void> toggleReaction(Post post, String emoji) async {
     final removing = post.userReactions.contains(emoji);
@@ -250,7 +262,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // UI — Feed View w/ Pull-to-refresh
+  // UI — Feed view
   // -------------------------------------------------------------
   Widget buildFeedView() {
     if (loading) return const Center(child: CircularProgressIndicator());
@@ -258,14 +270,23 @@ class _HomePageState extends State<HomePage> {
 
     return RefreshIndicator(
       color: Colors.black,
-      onRefresh: () async {
-        await fetchFeed();
-      },
+      onRefresh: fetchFeed,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.all(20),
-        itemCount: posts.length + 1,
+        itemCount: posts.length + 2,
         itemBuilder: (_, i) {
           if (i == 0) return buildHowItWorksCard();
+
+          if (i == posts.length + 1) {
+            return hasMore
+                ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : const SizedBox.shrink();
+          }
+
           return buildPostCard(posts[i - 1]);
         },
       ),
@@ -285,28 +306,22 @@ class _HomePageState extends State<HomePage> {
           children: [
             TextSpan(
               text: "How it works: ",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
             ),
             TextSpan(
               text:
                   "Your phone takes random photos throughout the day. You never know when it's coming. Stay real, stay ready!",
             ),
           ],
-          style: TextStyle(
-            fontSize: 15,
-            color: Color(0xFF6E6E6E),
-            height: 1.4,
-          ),
+          style: TextStyle(fontSize: 15, color: Color(0xFF6E6E6E), height: 1.4),
         ),
       ),
     );
   }
 
   // -------------------------------------------------------------
-  // Reaction Buttons (styled your way)
+  // Reaction chips
   // -------------------------------------------------------------
   Widget buildReactionsRow(Post p) {
     return Wrap(
@@ -362,7 +377,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Post Box + Navigate to Public Profile (with cache)
+  // Post card
   // -------------------------------------------------------------
   Widget buildPostCard(Post p) {
     return Container(
@@ -385,33 +400,29 @@ class _HomePageState extends State<HomePage> {
                   backgroundImage: NetworkImage(p.profileImg),
                 ),
                 const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    if (!_publicProfileCache.containsKey(p.userId)) {
+                      _publicProfileCache[p.userId] =
+                          PublicProfilePage(userId: p.userId);
+                    }
 
-                // tap username → public profile page
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      if (!_publicProfileCache.containsKey(p.userId)) {
-                        _publicProfileCache[p.userId] =
-                            PublicProfilePage(userId: p.userId);
-                      }
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => _publicProfileCache[p.userId]!,
-                        ),
-                      );
-                    },
-                    child: Text(
-                      p.username,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => _publicProfileCache[p.userId]!,
                       ),
+                    );
+                  },
+                  child: Text(
+                    p.username,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-
+                const Spacer(),
                 Text(
                   p.time,
                   style:
@@ -421,7 +432,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // POST IMAGE
+          // IMAGE
           p.image.isNotEmpty
               ? Image.memory(
                   base64Decode(cleanBase64(p.image)),
@@ -447,7 +458,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    _autoPostTimer?.cancel();
+    _scrollController.dispose();
+    AutoPostService().stop();
     super.dispose();
   }
 
@@ -462,7 +474,10 @@ class _HomePageState extends State<HomePage> {
         title: const Text(
           "be4real",
           style: TextStyle(
-              fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
         elevation: 0.8,
         backgroundColor: Colors.white,
@@ -473,13 +488,6 @@ class _HomePageState extends State<HomePage> {
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.clear();
-              await prefs.remove("authToken");
-
-              // Navigator.pushAndRemoveUntil(
-              //   context,
-              //   MaterialPageRoute(builder: (_) => const LoginPage()),
-              //   (_) => false,
-              // );
 
               AutoPostService().stop();
 
@@ -504,10 +512,8 @@ class _HomePageState extends State<HomePage> {
           setState(() => index = i);
 
           if (i == 0) {
-            // refresh home feed when returning
             await fetchFeed();
           } else if (i == 1) {
-            //refresh profile data whenever profile tab is tapped
             _profileKey.currentState?.refreshProfile();
           }
         },
@@ -527,12 +533,9 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// -------------------------------------------------------------
-// MODEL
-// -------------------------------------------------------------
 class Post {
   String postId;
-  String userId; // who posted it
+  String userId;
   String username;
   String profileImg;
   String image;
