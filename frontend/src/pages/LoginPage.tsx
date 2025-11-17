@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 
-const SERVER_URL = "http://bef4real.life/api";
-const LOCAL_URL = "http://localhost:3000"; 
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL =SERVER_URL // "http://localhost:3000"; 
 
 interface LoginPageProps {
   onSwitchToRegister?: () => void;

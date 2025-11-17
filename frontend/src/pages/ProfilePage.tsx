@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 
-const SERVER_URL = "http://bef4real.life/api";
-const LOCAL_URL = "http://localhost:3000";
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL = SERVER_URL// "http://localhost:3000";
 
 interface ProfilePageProps {
   authToken: string;

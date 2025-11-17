@@ -5,8 +5,8 @@ import { HomePage } from "./pages/HomePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { Button } from "./components/ui/button";
 
-const SERVER_URL = "http://bef4real.life/api";
-const LOCAL_URL = "http://localhost:3000";
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL = SERVER_URL// "http://localhost:3000";
 
 type View = "login" | "register" | "home" | "profile";
 

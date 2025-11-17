@@ -8,8 +8,8 @@ interface RegisterPageProps {
   onRegisterSuccess?: (token: string) => void;
 }
 
-const SERVER_URL = "http://bef4real.life/api";
-const LOCAL_URL = "http://localhost:3000"; 
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL = SERVER_URL// "http://localhost:3000"; 
 
 export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPageProps) {
   const [step, setStep] = useState(1);
@@ -205,7 +205,7 @@ export function RegisterPage({ onSwitchToLogin, onRegisterSuccess }: RegisterPag
                 <Checkbox
                   id="terms"
                   checked={formData.agreedToTerms}
-                  onCheckedChange={(checked) => handleInputChange("agreedToTerms", checked as boolean)}
+                  onCheckedChange={(checked: any) => handleInputChange("agreedToTerms", checked as boolean)}
                   className="mt-1"
                 />
                 <label htmlFor="terms" className="text-sm text-gray-600">

@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
-import register from "../../../src/endpoints/auth/register"; // Adjust path as needed
+import login from "../../../src/endpoints/auth/login"; // Adjust path as needed
 
 // Mock the dependencies
 jest.mock("../../utils/mongo.js");
+jest.mock("../../utils/jwt.js");
 jest.mock("bcrypt");
 
-describe("Register Function", () => {
+describe("Login Function", () => {
     let mockReq: Partial<Request>;
     let mockRes: Partial<Response>;
     let mockJson: jest.Mock;
@@ -26,28 +27,10 @@ describe("Register Function", () => {
         };
     });
 
-    test("should return 400 when username is missing", async () => {
-        mockReq.body = { 
-            email: "test@example.com",
-            password: "testpassword123" 
-        };
-        
-        await register(mockReq as Request, mockRes as Response);
-        
-        expect(mockStatus).toHaveBeenCalledWith(400);
-        expect(mockJson).toHaveBeenCalledWith({
-            status: "error",
-            message: "Missing fields"
-        });
-    });
-
     test("should return 400 when email is missing", async () => {
-        mockReq.body = { 
-            username: "testuser",
-            password: "testpassword123" 
-        };
+        mockReq.body = { password: "testpassword123" };
         
-        await register(mockReq as Request, mockRes as Response);
+        await login(mockReq as Request, mockRes as Response);
         
         expect(mockStatus).toHaveBeenCalledWith(400);
         expect(mockJson).toHaveBeenCalledWith({
@@ -57,12 +40,9 @@ describe("Register Function", () => {
     });
 
     test("should return 400 when password is missing", async () => {
-        mockReq.body = { 
-            username: "testuser",
-            email: "test@example.com"
-        };
+        mockReq.body = { email: "test@example.com" };
         
-        await register(mockReq as Request, mockRes as Response);
+        await login(mockReq as Request, mockRes as Response);
         
         expect(mockStatus).toHaveBeenCalledWith(400);
         expect(mockJson).toHaveBeenCalledWith({
@@ -71,10 +51,10 @@ describe("Register Function", () => {
         });
     });
 
-    test("should return 400 when all fields are missing", async () => {
+    test("should return 400 when both email and password are missing", async () => {
         mockReq.body = {};
         
-        await register(mockReq as Request, mockRes as Response);
+        await login(mockReq as Request, mockRes as Response);
         
         expect(mockStatus).toHaveBeenCalledWith(400);
         expect(mockJson).toHaveBeenCalledWith({

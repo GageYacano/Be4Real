@@ -2,17 +2,16 @@ import {Request, Response} from "express";
 import {getDB} from "../../../utils/mongo.js";
 import {DBPost} from "../../../types/mongo_schemas.js";
 //import {getJWT, checkJWT} from "../../utils/jwt.js";
-import {ObjectId, Db} from "mongodb";
+import {ObjectId} from "mongodb";
 
 /**
  * Gets a single post by ID
  *
  * @param req.params - post id passed in through route param
- * @param db - Optional database instance (for testing)
  *
  * (ex. http://<IP>:<PORT>/api/post/<UNIQUE_MONGO_ObjectId_FOR_POST>)
  */
-export default async function getSinglePost(req: Request, res: Response, db?: Db) {
+export default async function getSinglePost(req: Request, res: Response) {
     try {
         // don't need jwt auth if posts are visible to anyone
         // const {err: getJWTErr, token} = getJWT(req.headers.authorization);
@@ -47,9 +46,8 @@ export default async function getSinglePost(req: Request, res: Response, db?: Db
             });
         }
 
-        // Use injected db or get from connection
-        const database = db || await getDB();
-        const postsColl = database.collection<DBPost>("posts");
+        const db = await getDB();
+        const postsColl = db.collection<DBPost>("posts");
 
         // find the post
         const post = await postsColl.findOne({_id: new ObjectId(postId)});
