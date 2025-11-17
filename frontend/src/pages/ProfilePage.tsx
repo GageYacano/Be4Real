@@ -210,13 +210,7 @@ export function ProfilePage({
                       )}
                     </div>
 
-                    {isOwnProfile && (
-                      <div className="flex items-center justify-start gap-2 text-[11px] text-gray-500 sm:justify-end sm:text-xs">
-                        <span className="rounded-full border border-gray-700 px-3 py-1 uppercase tracking-wide">
-                          Owner
-                        </span>
-                      </div>
-                    )}
+                    {/* Owner badge removed per request */}
                   </div>
 
                   {/* Compact stats row */}
