@@ -60,15 +60,19 @@ export function HomePage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   // Stable refs to prevent races and dupes
   const fetchingRef = useRef(false);
   const pollRef = useRef<number | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const userCacheRef = useRef<Map<string, FeedUser>>(new Map());
+  const postsRef = useRef<PostProps[]>([]);
 
-  const newestId = () => posts[0]?.postId ?? null;         // for ?after=
-  const oldestId = () => posts[posts.length - 1]?.postId ?? null; // for &before=
+  // Keep postsRef in sync with posts state
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const fetchUser = useCallback(
     async (rawUserId: string): Promise<FeedUser> => {
@@ -119,72 +123,118 @@ export function HomePage({
 
   const fetchFeed = useCallback(
     async (direction: "init" | "newer" | "older" = "init") => {
-      if (fetchingRef.current) return;
+      if (fetchingRef.current) {
+        console.log(`[BLOCKED] Already fetching, direction: ${direction}`);
+        return;
+      }
+      
       fetchingRef.current = true;
       setError(null);
       setIsRefreshing(direction !== "init");
 
       try {
-        let url = `${LOCAL_URL}/post/get-feed?limit=100`;
+        let url = `${LOCAL_URL}/post/get-feed?limit=5`;
+        
+        // Use ref to get current cursor values
+        const currentPosts = postsRef.current;
+        
         if (direction === "newer") {
-          const after = newestId();
-          if (after) url += `&after=${after}`;
+          const after = currentPosts[0]?.postId;
+          if (after) {
+            url += `&after=${after}`;
+            console.log(`[NEWER] Requesting posts after: ${after}`);
+          }
         } else if (direction === "older") {
-          const before = oldestId();
-          if (before) url += `&before=${before}`;
+          const before = currentPosts[currentPosts.length - 1]?.postId;
+          if (before) {
+            url += `&before=${before}`;
+            console.log(`[OLDER] Requesting posts before: ${before}`);
+          } else {
+            console.log(`[OLDER] No cursor available, skipping`);
+            fetchingRef.current = false;
+            setIsRefreshing(false);
+            return;
+          }
         }
 
+        console.log(`[FETCH] ${direction.toUpperCase()} - URL: ${url}`);
+        
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
+        
         if (!res.ok) throw new Error("Unable to load feed");
 
         const json = await res.json();
         const rawPosts: any[] = json?.data?.posts ?? [];
+        console.log(`[${direction.toUpperCase()}] Received ${rawPosts.length} raw posts`);
 
         // Convert and de-dupe by ID
         const next: PostProps[] = [];
         for (const raw of rawPosts) {
           const id = normalizeId(raw._id ?? raw.postId);
           if (!id) continue;
-          if (seenIdsRef.current.has(id)) continue; // skip dup
+          if (seenIdsRef.current.has(id)) {
+            console.log(`[DUPE] Skipping already seen post: ${id}`);
+            continue;
+          }
           const p = await mapRawToPost(raw);
           next.push(p);
         }
 
+        console.log(`[${direction.toUpperCase()}] Adding ${next.length} new posts after dedup`);
+
+        // Check if we've reached the end
+        if (direction === "older" && next.length < 5) {
+          console.log(`[OLDER] Reached end of feed`);
+          setHasMore(false);
+        }
+
         if (next.length) {
-          // Record new IDs before setState to avoid races on rapid polling
+          // Record new IDs before setState to avoid races
           next.forEach(p => seenIdsRef.current.add(p.postId));
+          
           setPosts(prev => {
-            if (direction === "older") return [...prev, ...next];
+            if (direction === "older") {
+              console.log(`[OLDER] Appending ${next.length} posts to ${prev.length} existing`);
+              return [...prev, ...next];
+            }
             // "init" and "newer" should prepend (API returns newest first)
+            console.log(`[${direction.toUpperCase()}] Prepending ${next.length} posts to ${prev.length} existing`);
             return [...next, ...prev];
           });
+        } else {
+          console.log(`[${direction.toUpperCase()}] No new posts to add`);
+          if (direction === "older") {
+            setHasMore(false);
+          }
         }
       } catch (e: any) {
-        console.error(e);
+        console.error(`[ERROR] ${direction}:`, e);
         setError(e?.message ?? "Unable to load feed");
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
         fetchingRef.current = false;
+        console.log(`[DONE] ${direction.toUpperCase()} fetch complete`);
       }
     },
-    [authToken] // posts not a dep; we use refs for cursors/seen
+    [authToken, mapRawToPost]
   );
 
   // Initial load + reloadKey changes
   useEffect(() => {
+    console.log(`[INIT] Reload key changed: ${reloadKey}`);
     // reset state on reloadKey change
     setPosts([]);
     setIsLoading(true);
     setError(null);
+    setHasMore(true);
     seenIdsRef.current.clear();
     userCacheRef.current.clear();
 
     fetchFeed("init");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadKey]);
+  }, [reloadKey, fetchFeed]);
 
   // Polling for new posts when at top
   useEffect(() => {
@@ -192,28 +242,40 @@ export function HomePage({
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
-    // poll every second only when user is at top to avoid churn
+    
+    if (!scrolledTop) return;
+    
+    // poll every 3 seconds when at top
     pollRef.current = window.setInterval(() => {
-      if (scrolledTop && !fetchingRef.current) {
+      if (!fetchingRef.current) {
+        console.log(`[POLL] Checking for new posts`);
         fetchFeed("newer");
       }
-    }, 1000) as unknown as number;
+    }, 3000) as unknown as number;
 
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = null;
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
   }, [fetchFeed, scrolledTop]);
 
-  // Edge-triggered loads from scroll flags
+  // Load older posts when scrolled to bottom
   useEffect(() => {
-    if (scrolledTop && !fetchingRef.current) {
-      fetchFeed("newer");
-    }
-    if (scrolledBottom && !fetchingRef.current) {
+    if (scrolledBottom && !fetchingRef.current && hasMore) {
+      console.log(`[SCROLL] Bottom reached, loading older posts`);
       fetchFeed("older");
     }
-  }, [scrolledTop, scrolledBottom, fetchFeed]);
+  }, [scrolledBottom, fetchFeed, hasMore]);
+
+  // Load newer posts when scrolled to top
+  useEffect(() => {
+    if (scrolledTop && !fetchingRef.current) {
+      console.log(`[SCROLL] Top reached, loading newer posts`);
+      fetchFeed("newer");
+    }
+  }, [scrolledTop, fetchFeed]);
 
   return (
     <div className="max-w-md mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
@@ -238,6 +300,11 @@ export function HomePage({
               onViewProfile={onViewProfile}
             />
           ))}
+          {!hasMore && (
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl px-8 py-8 text-center text-gray-500 text-sm">
+              You've reached the end
+            </div>
+          )}
         </div>
       )}
     </div>
