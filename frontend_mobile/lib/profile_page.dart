@@ -7,6 +7,25 @@ import 'login.dart';
 
 const SERVER = "http://be4real.life/api";
 
+// Cache user profile so switching tabs is instant
+_CachedPrivateProfile? _cachedPrivate;
+
+class _CachedPrivateProfile {
+  final String username;
+  final int reactions;
+  final int postCount;
+  final List<String> images;
+  final String? avatar; // base64 or url
+
+  _CachedPrivateProfile({
+    required this.username,
+    required this.reactions,
+    required this.postCount,
+    required this.images,
+    required this.avatar,
+  });
+}
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -17,32 +36,38 @@ class ProfilePage extends StatefulWidget {
 class ProfilePageState extends State<ProfilePage> {
   String username = "Loading...";
   String userId = "";
-  int followers = 0;
-  int following = 0;
   int reactions = 0;
-
-  int postCount = 0; // accurate backend count
+  int postCount = 0;
   List<String> postImages = [];
+  String? avatarBase64;
 
   bool loading = true;
-  String? avatarBase64;
 
   @override
   void initState() {
     super.initState();
     loadLocal();
-    fetchProfile();
+
+    // If cached → show instantly, then refresh silently
+    if (_cachedPrivate != null) {
+      username = _cachedPrivate!.username;
+      reactions = _cachedPrivate!.reactions;
+      postCount = _cachedPrivate!.postCount;
+      postImages = _cachedPrivate!.images;
+      avatarBase64 = _cachedPrivate!.avatar;
+      loading = false;
+      fetchProfile(); // silent update
+    } else {
+      fetchProfile();
+    }
   }
 
-  // 🔥 called from HomePage when profile tab is tapped
+  // Called from HomePage when profile tab is opened
   Future<void> refreshProfile() async {
-    setState(() {
-      loading = true;
-    });
+    setState(() => loading = true);
     await fetchProfile();
   }
 
-  // ---------------------------------------------------------
   Future<void> loadLocal() async {
     final prefs = await SharedPreferences.getInstance();
     username = prefs.getString("username") ?? "Unknown";
@@ -50,16 +75,18 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   // ---------------------------------------------------------
+  // FAST PROFILE FETCH (parallel + cached + first-post-avatar)
+  // ---------------------------------------------------------
   Future<void> fetchProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("authToken");
-
       if (token == null || userId.isEmpty) {
         setState(() => loading = false);
         return;
       }
 
+      // Fetch user info
       final res = await http.get(
         Uri.parse("$SERVER/user/get/$userId"),
         headers: {"Authorization": "Bearer $token"},
@@ -68,47 +95,61 @@ class ProfilePageState extends State<ProfilePage> {
       final json = jsonDecode(res.body);
       final user = json["data"]["user"];
 
-      final rawPostsList = user["posts"] as List? ?? [];
+      final usernameNew = user["username"] ?? username;
+      final reactionsNew = user["reactions"] ?? 0;
+      final rawPosts = user["posts"] as List? ?? [];
+      final postCountNew = rawPosts.length;
+      final backendProfileImg = user["profileImg"];
 
-      setState(() {
-        username = user["username"] ?? username;
-        followers = user["followers"] ?? 0;
-        following = user["following"] ?? 0;
-        reactions = user["reactions"] ?? 0;
-        postCount = rawPostsList.length;
-      });
+      // IDs in correct order (reverse so oldest → newest)
+      final pidList = rawPosts.map(normalizeId).toList().reversed.toList();
 
-      // Normalize Post IDs
-      final rawPosts = List<String>.from(
-        rawPostsList.map((p) => normalizeId(p)),
-      );
-
-      List<String> images = [];
-      avatarBase64 = null; // reset so avatar updates on refresh
-
-      for (final pid in rawPosts) {
+      // Parallel fetch all post images
+      final futures = pidList.map((pid) async {
         try {
-          final postRes = await http.get(
+          final pr = await http.get(
             Uri.parse("$SERVER/post/get/$pid"),
             headers: {"Authorization": "Bearer $token"},
           );
-
-          if (postRes.statusCode == 200) {
-            final postJson = jsonDecode(postRes.body);
-            final img = postJson["data"]["post"]["imgData"];
-
-            if (img is String && img.isNotEmpty) {
-              images.add(img);
-
-              // FIRST image becomes avatar
-              avatarBase64 ??= img;
-            }
+          if (pr.statusCode == 200) {
+            final j = jsonDecode(pr.body);
+            final img = j["data"]["post"]["imgData"];
+            if (img is String && img.isNotEmpty) return img;
           }
         } catch (_) {}
+        return null;
+      }).toList();
+
+      final results = await Future.wait(futures);
+      final imagesNew = results.whereType<String>().toList();
+
+      // Avatar logic (same as PublicProfilePage)
+      String? avatarToStore;
+      if (imagesNew.isNotEmpty) {
+        avatarToStore = imagesNew.first; // FIRST post ever
+      } else if (backendProfileImg != null &&
+          backendProfileImg.toString().isNotEmpty &&
+          backendProfileImg.toString() != "null") {
+        avatarToStore = backendProfileImg.toString();
+      } else {
+        avatarToStore = null; // dicebear fallback
       }
 
+      // cache the profile
+      _cachedPrivate = _CachedPrivateProfile(
+        username: usernameNew,
+        reactions: reactionsNew,
+        postCount: postCountNew,
+        images: imagesNew,
+        avatar: avatarToStore,
+      );
+
       setState(() {
-        postImages = images;
+        username = usernameNew;
+        reactions = reactionsNew;
+        postCount = postCountNew;
+        postImages = imagesNew;
+        avatarBase64 = avatarToStore;
         loading = false;
       });
     } catch (e) {
@@ -118,28 +159,28 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   // ---------------------------------------------------------
-  String normalizeId(dynamic value) {
-    if (value is String) return value;
-    if (value is Map) {
-      if (value.containsKey("\$oid")) return value["\$oid"];
-      if (value.containsKey("oid")) return value["oid"];
-    }
-    return value.toString();
+  String normalizeId(dynamic v) {
+    if (v is String) return v;
+    if (v is Map && v.containsKey("\$oid")) return v["\$oid"];
+    return v.toString();
   }
 
   // ---------------------------------------------------------
   ImageProvider getAvatarImage() {
-    if (avatarBase64 != null) {
+    if (avatarBase64 != null &&
+        avatarBase64!.isNotEmpty &&
+        avatarBase64 != "null") {
+      if (avatarBase64!.startsWith("http")) {
+        return NetworkImage(avatarBase64!);
+      }
       try {
         return MemoryImage(base64Decode(cleanBase64(avatarBase64!)));
       } catch (_) {}
     }
 
-    final seed = Uri.encodeComponent(username);
-    final url =
-        "https://api.dicebear.com/7.x/avataaars/png?seed=$seed&size=128";
-
-    return NetworkImage(url);
+    return NetworkImage(
+      "https://api.dicebear.com/7.x/avataaars/png?seed=$username&size=128",
+    );
   }
 
   String cleanBase64(String raw) {
@@ -174,15 +215,10 @@ class ProfilePageState extends State<ProfilePage> {
           ? const Center(child: CircularProgressIndicator(color: Colors.black))
           : RefreshIndicator(
               color: Colors.black,
-              onRefresh: () async {
-                await fetchProfile();
-              },
+              onRefresh: fetchProfile,
               child: ListView(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 10),
+                padding: const EdgeInsets.all(20),
                 children: [
-                  // ---------------------------------
-                  // PROFILE HEADER
-                  // ---------------------------------
                   Center(
                     child: Column(
                       children: [
@@ -215,9 +251,7 @@ class ProfilePageState extends State<ProfilePage> {
 
                   const SizedBox(height: 30),
 
-                  // ---------------------------------
-                  // POSTS GRID
-                  // ---------------------------------
+                  // Posts grid
                   Container(
                     decoration: BoxDecoration(
                       color: cardBg,
@@ -268,10 +302,7 @@ class ProfilePageState extends State<ProfilePage> {
         ),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-          ),
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
       ],
     );
