@@ -5,8 +5,8 @@ import { HomePage } from "./pages/HomePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { Button } from "./components/ui/button";
 
-const SERVER_URL = "http://bef4real.life/api";
-const LOCAL_URL = "http://localhost:3000";
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL = SERVER_URL// "http://localhost:3000";
 
 type View = "login" | "register" | "home" | "profile";
 
@@ -28,7 +28,6 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
-  const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [feedReloadKey, setFeedReloadKey] = useState(0);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
   const [scrollPosition, setScrollPosition] = useState({
@@ -125,7 +124,6 @@ export default function App() {
     setAuthToken(null);
     setCurrentUser(null);
     setSelectedProfile(null);
-    setFollowingMap({});
     setFeedReloadKey(0);
     setProfileReloadKey(0);
     setCurrentView("login");
@@ -141,22 +139,6 @@ export default function App() {
     setSelectedProfile(null);
     setCurrentView("home");
   };
-
-  const handleToggleFollow = useCallback((targetId: string, nextState: boolean) => {
-    setFollowingMap((prev) => {
-      const next = { ...prev };
-      if (nextState) next[targetId] = true;
-      else delete next[targetId];
-      return next;
-    });
-    setCurrentUser((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        following: Math.max(0, prev.following + (nextState ? 1 : -1)),
-      };
-    });
-  }, []);
 
   const goToHome = () => {
     setCurrentView("home");
@@ -232,8 +214,6 @@ export default function App() {
     username: currentUser.username,
   };
   const isOwnProfile = effectiveProfile.id === currentUser.id;
-  const isFollowing = !!followingMap[effectiveProfile.id];
-
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="border-b border-gray-800 bg-black sticky top-0 z-40">
@@ -289,10 +269,7 @@ export default function App() {
             profile={effectiveProfile}
             onBack={handleBackToFeed}
             isOwnProfile={isOwnProfile}
-            isFollowing={isFollowing}
-            onToggleFollow={handleToggleFollow}
             reloadKey={profileReloadKey}
-            currentUserFollowing={currentUser.following}
           />
         ) : (
           <HomePage

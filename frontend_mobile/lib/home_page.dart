@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'dart:math';
 
 import 'main.dart';
 import 'profile_page.dart';
 import 'public_profile_page.dart';
 import 'login.dart';
-import 'camera.dart';
 import 'auto_post.dart';
 
 const SERVER = "http://be4real.life/api";
@@ -32,77 +30,49 @@ class _HomePageState extends State<HomePage> {
   List<Post> posts = [];
   bool loading = true;
   String? error;
-  Timer? _autoPostTimer;
-  final Random _rng = Random();
 
-  int index = 0; // 0 = feed, 1 = profile
+  // ⭐ Prevent constant reloading on tab switch
+  bool feedLoadedOnce = false;
 
-  // persistent profile with key so we can tell it to refresh
+  // pagination
+  String? lastPostId;
+  bool hasMore = true;
+  bool isLoadingMore = false;
+  final ScrollController _scrollController = ScrollController();
+
+  // bottom nav + profile
+  int index = 0;
   late final ProfilePage _profilePage;
   final GlobalKey<ProfilePageState> _profileKey = GlobalKey<ProfilePageState>();
 
-  // cache for public profiles (so they don't rebuild every time)
+  // cache public profile screens
   final Map<String, PublicProfilePage> _publicProfileCache = {};
+
+  // user info cache (HUGE speed boost)
+  final Map<String, Map<String, String>> _userInfoCache = {};
 
   @override
   void initState() {
     super.initState();
 
-    print("HomePage initState called!");
-
-    // Create once with key
     _profilePage = ProfilePage(key: _profileKey);
 
-    fetchFeed();
+    fetchFeed(); // first load only
 
-    // Pass context so camera can open
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >
+          _scrollController.position.maxScrollExtent - 200) {
+        loadMorePosts();
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AutoPostService().start(context);
     });
-    //AutoPostService().start(context);
-    //_startRandomPostingLoop();
   }
 
-  // void _startRandomPostingLoop() {
-  //   // Start immediately
-  //   _scheduleNextPost();
-  // }
-
-  // void _scheduleNextPost() {
-  //   // random number between 5 sec and 60 sec
-  //   int nextDelay = _rng.nextInt(55) + 5; // results in 5–60 seconds
-  //   print("Next auto-picture in $nextDelay seconds...");
-
-  //   _autoPostTimer?.cancel();
-  //   _autoPostTimer = Timer(Duration(seconds: nextDelay), () async {
-  //     // Take + Upload
-  //     print("Taking automatic picture...");
-  //     bool ok =
-  //         await CameraService.autoCaptureAndUpload(context, widget.authToken);
-
-  //     if (ok) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("Picture uploaded successfully!")),
-  //       );
-  //     } else {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("Failed to upload picture.")),
-  //       );
-  //     }
-
-  //     if (ok) {
-  //       print("Auto post uploaded successfully!");
-  //     } else {
-  //       print("Auto post failed.");
-  //     }
-
-  //     // Schedule the next one
-  //     _scheduleNextPost();
-  //   });
-  // }
-
   // -------------------------------------------------------------
-  // Helpers
+  // HELPERS
   // -------------------------------------------------------------
   String cleanBase64(String raw) {
     final idx = raw.indexOf("base64,");
@@ -112,102 +82,131 @@ class _HomePageState extends State<HomePage> {
   String dicebearURL(String username) {
     final seed = Uri.encodeComponent(username);
     return "https://api.dicebear.com/7.x/avataaars/png?seed=$seed&size=128";
-    // if you want the same avatar service as before
   }
 
-  String resolveProfileAvatar(String raw, String username) {
+  String resolveAvatar(String raw, String username) {
     if (raw.isEmpty || raw == "null") return dicebearURL(username);
     if (raw.startsWith("http")) return raw;
-    if (raw.startsWith("/assets") || raw.contains("default")) {
-      return dicebearURL(username);
-    }
-    return raw;
+    return dicebearURL(username);
   }
 
   // -------------------------------------------------------------
-  // Fetch user info for each post
+  // CACHED fetchUserInfo
   // -------------------------------------------------------------
   Future<Map<String, String>> fetchUserInfo(String uid) async {
-    try {
-      final res = await http.get(
-        Uri.parse("$SERVER/user/get/$uid"),
-        headers: {"Authorization": "Bearer ${widget.authToken}"},
+  // If cached, return cached map
+  if (_userInfoCache.containsKey(uid)) {
+    return _userInfoCache[uid]!;
+  }
+
+  try {
+    final res = await http.get(
+      Uri.parse("$SERVER/user/get/$uid"),
+      headers: {"Authorization": "Bearer ${widget.authToken}"},
+    );
+
+    final json = jsonDecode(res.body);
+    final u = json["data"]["user"];
+
+    // ⭐ FIX: Explicitly typed Map<String, String>
+    final Map<String, String> map = {
+      "username": (u["username"] ?? "Unknown").toString(),
+      "profileImg": (u["profileImg"] ?? "").toString(),
+    };
+
+    _userInfoCache[uid] = map;     // VALID
+    return map;                    // VALID
+  } catch (e) {
+    return {
+      "username": "Unknown",
+      "profileImg": "",
+    };
+  }
+}
+
+
+  // -------------------------------------------------------------
+  // PARSE POSTS
+  // -------------------------------------------------------------
+  Future<List<Post>> parsePosts(List rawPosts) async {
+    List<Post> list = [];
+
+    for (final p in rawPosts) {
+      final uid = p["user"];
+      final userInfo = await fetchUserInfo(uid);
+
+      final avatar = resolveAvatar(
+        userInfo["profileImg"]!,
+        userInfo["username"]!,
       );
 
-      final json = jsonDecode(res.body);
-      final u = json["data"]["user"];
+      // reactions
+      final rawReacts = p["reactions"] ?? {};
+      Map<String, int> reactionCounts = {};
+      Set<String> selectedByMe = {};
 
-      return {
-        "username": u["username"] ?? "Unknown",
-        "profileImg": u["profileImg"] ?? "",
-      };
-    } catch (_) {
-      return {"username": "Unknown", "profileImg": ""};
+      rawReacts.forEach((emoji, users) {
+        List<String> ids = [];
+
+        if (users is List) {
+          ids = List<String>.from(users);
+        } else if (users is Map) {
+          ids = users.values.map((e) => e.toString()).toList();
+        }
+
+        reactionCounts[emoji] = ids.length;
+
+        if (widget.currentUserId != null &&
+            ids.contains(widget.currentUserId)) {
+          selectedByMe.add(emoji);
+        }
+      });
+
+      list.add(
+        Post(
+          postId: p["postId"] ?? p["_id"],
+          userId: uid,
+          username: userInfo["username"]!,
+          profileImg: avatar,
+          image: p["imgData"] ?? "",
+          time: formatTime(p["ctime"]),
+          reactionList: reactionCounts,
+          userReactions: selectedByMe,
+        ),
+      );
     }
+
+    return list;
   }
 
   // -------------------------------------------------------------
-  // Load Feed
+  // FETCH FEED (cached)
   // -------------------------------------------------------------
   Future<void> fetchFeed() async {
-    setState(() => loading = true);
+    if (feedLoadedOnce) return;
+
+    setState(() {
+      loading = true;
+      hasMore = true;
+      lastPostId = null;
+    });
 
     try {
       final res = await http.get(
-        Uri.parse("$SERVER/post/get-feed?limit=100"),
+        Uri.parse("$SERVER/post/get-feed?limit=10"),
         headers: {"Authorization": "Bearer ${widget.authToken}"},
       );
 
       final body = jsonDecode(res.body);
-      final rawPosts = body["data"]["posts"] as List;
+      final raw = body["data"]["posts"] as List;
+      final loaded = await parsePosts(raw);
 
-      List<Post> loaded = [];
-
-      for (final p in rawPosts) {
-        final uid = p["user"];
-        final userInfo = await fetchUserInfo(uid);
-
-        final avatar = resolveProfileAvatar(
-          userInfo["profileImg"]!,
-          userInfo["username"]!,
-        );
-
-        // Parse reactions
-        final rawReactions = p["reactions"] ?? {};
-        Map<String, int> reactionCounts = {};
-        Set<String> selectedByMe = {};
-
-        rawReactions.forEach((emoji, users) {
-          List<String> userIds = [];
-
-          if (users is List) userIds = List<String>.from(users);
-          if (users is Map) {
-            userIds = users.values.map((e) => e.toString()).toList();
-          }
-
-          reactionCounts[emoji] = userIds.length;
-
-          if (widget.currentUserId != null &&
-              userIds.contains(widget.currentUserId)) {
-            selectedByMe.add(emoji);
-          }
-        });
-
-        loaded.add(
-          Post(
-            postId: p["_id"],
-            userId: uid,
-            username: userInfo["username"]!,
-            profileImg: avatar,
-            image: p["imgData"] ?? "",
-            time: formatTime(p["ctime"]),
-            reactionList: reactionCounts,
-            userReactions: selectedByMe,
-          ),
-        );
-      }
-
-      setState(() => posts = loaded);
+      setState(() {
+        posts = loaded;
+        if (posts.isNotEmpty) lastPostId = posts.last.postId;
+        hasMore = raw.length == 10;
+        feedLoadedOnce = true; // cache
+      });
     } catch (e) {
       setState(() => error = "Error: $e");
     } finally {
@@ -216,12 +215,40 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Time Formatting
+  // LOAD MORE
+  // -------------------------------------------------------------
+  Future<void> loadMorePosts() async {
+    if (isLoadingMore || !hasMore || lastPostId == null) return;
+
+    setState(() => isLoadingMore = true);
+
+    try {
+      final res = await http.get(
+        Uri.parse("$SERVER/post/get-feed?limit=10&before=$lastPostId"),
+        headers: {"Authorization": "Bearer ${widget.authToken}"},
+      );
+
+      final body = jsonDecode(res.body);
+      final raw = body["data"]["posts"] as List;
+      final more = await parsePosts(raw);
+
+      setState(() {
+        posts.addAll(more);
+        if (more.isNotEmpty) lastPostId = more.last.postId;
+        hasMore = raw.length == 10;
+      });
+    } catch (_) {
+    } finally {
+      setState(() => isLoadingMore = false);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // TIME FORMAT
   // -------------------------------------------------------------
   String formatTime(int timestamp) {
     final diff = DateTime.now().millisecondsSinceEpoch - timestamp;
     final minutes = diff ~/ 60000;
-
     if (minutes < 1) return "Just now";
     if (minutes < 60) return "${minutes}m";
     final hours = minutes ~/ 60;
@@ -230,7 +257,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Toggle Reaction
+  // REACTION TOGGLE
   // -------------------------------------------------------------
   Future<void> toggleReaction(Post post, String emoji) async {
     final removing = post.userReactions.contains(emoji);
@@ -250,7 +277,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // UI — Feed View w/ Pull-to-refresh
+  // BUILD FEED VIEW
   // -------------------------------------------------------------
   Widget buildFeedView() {
     if (loading) return const Center(child: CircularProgressIndicator());
@@ -259,13 +286,26 @@ class _HomePageState extends State<HomePage> {
     return RefreshIndicator(
       color: Colors.black,
       onRefresh: () async {
+        // Force reload on pull-to-refresh
+        feedLoadedOnce = false;
         await fetchFeed();
       },
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.all(20),
-        itemCount: posts.length + 1,
+        itemCount: posts.length + 2,
         itemBuilder: (_, i) {
           if (i == 0) return buildHowItWorksCard();
+
+          if (i == posts.length + 1) {
+            return hasMore
+                ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : const SizedBox.shrink();
+          }
+
           return buildPostCard(posts[i - 1]);
         },
       ),
@@ -285,28 +325,22 @@ class _HomePageState extends State<HomePage> {
           children: [
             TextSpan(
               text: "How it works: ",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
             ),
             TextSpan(
               text:
                   "Your phone takes random photos throughout the day. You never know when it's coming. Stay real, stay ready!",
             ),
           ],
-          style: TextStyle(
-            fontSize: 15,
-            color: Color(0xFF6E6E6E),
-            height: 1.4,
-          ),
+          style: TextStyle(fontSize: 15, color: Color(0xFF6E6E6E), height: 1.4),
         ),
       ),
     );
   }
 
   // -------------------------------------------------------------
-  // Reaction Buttons (styled your way)
+  // REACTIONS ROW
   // -------------------------------------------------------------
   Widget buildReactionsRow(Post p) {
     return Wrap(
@@ -320,6 +354,7 @@ class _HomePageState extends State<HomePage> {
         return GestureDetector(
           onTap: () async {
             await toggleReaction(p, emoji);
+
             setState(() {
               if (isMine) {
                 p.userReactions.remove(emoji);
@@ -362,7 +397,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -------------------------------------------------------------
-  // Post Box + Navigate to Public Profile (with cache)
+  // POST CARD
   // -------------------------------------------------------------
   Widget buildPostCard(Post p) {
     return Container(
@@ -385,43 +420,41 @@ class _HomePageState extends State<HomePage> {
                   backgroundImage: NetworkImage(p.profileImg),
                 ),
                 const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    if (!_publicProfileCache.containsKey(p.userId)) {
+                      _publicProfileCache[p.userId] =
+                          PublicProfilePage(userId: p.userId);
+                    }
 
-                // tap username → public profile page
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      if (!_publicProfileCache.containsKey(p.userId)) {
-                        _publicProfileCache[p.userId] =
-                            PublicProfilePage(userId: p.userId);
-                      }
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => _publicProfileCache[p.userId]!,
-                        ),
-                      );
-                    },
-                    child: Text(
-                      p.username,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => _publicProfileCache[p.userId]!,
                       ),
+                    );
+                  },
+                  child: Text(
+                    p.username,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-
+                const Spacer(),
                 Text(
                   p.time,
-                  style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF6E6E6E)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6E6E6E),
+                  ),
                 ),
               ],
             ),
           ),
 
-          // POST IMAGE
+          // IMAGE
           p.image.isNotEmpty
               ? Image.memory(
                   base64Decode(cleanBase64(p.image)),
@@ -445,9 +478,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // -------------------------------------------------------------
+  // DISPOSE
+  // -------------------------------------------------------------
   @override
   void dispose() {
-    _autoPostTimer?.cancel();
+    _scrollController.dispose();
+    AutoPostService().stop();
     super.dispose();
   }
 
@@ -462,7 +499,10 @@ class _HomePageState extends State<HomePage> {
         title: const Text(
           "be4real",
           style: TextStyle(
-              fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
         elevation: 0.8,
         backgroundColor: Colors.white,
@@ -473,13 +513,6 @@ class _HomePageState extends State<HomePage> {
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.clear();
-              await prefs.remove("authToken");
-
-              // Navigator.pushAndRemoveUntil(
-              //   context,
-              //   MaterialPageRoute(builder: (_) => const LoginPage()),
-              //   (_) => false,
-              // );
 
               AutoPostService().stop();
 
@@ -503,11 +536,8 @@ class _HomePageState extends State<HomePage> {
         onTap: (i) async {
           setState(() => index = i);
 
-          if (i == 0) {
-            // refresh home feed when returning
-            await fetchFeed();
-          } else if (i == 1) {
-            //refresh profile data whenever profile tab is tapped
+          // ⭐ Do NOT reload feed on tab switch
+          if (i == 1) {
             _profileKey.currentState?.refreshProfile();
           }
         },
@@ -516,7 +546,10 @@ class _HomePageState extends State<HomePage> {
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: "Home"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_filled),
+            label: "Home",
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             label: "Profile",
@@ -528,11 +561,11 @@ class _HomePageState extends State<HomePage> {
 }
 
 // -------------------------------------------------------------
-// MODEL
+// POST MODEL
 // -------------------------------------------------------------
 class Post {
   String postId;
-  String userId; // who posted it
+  String userId;
   String username;
   String profileImg;
   String image;

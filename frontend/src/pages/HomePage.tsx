@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Post, PostProps } from "../components/Post";
 
-const LOCAL_URL = "http://localhost:3000";
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL =  SERVER_URL//"http://localhost:3000";
 
 interface HomePageProps {
   authToken: string;
@@ -85,6 +86,12 @@ export function HomePage({
       });
       const j = await r.json();
       const u = j?.data?.user ?? {};
+      
+      let profileImg = "/assets/default-pfp.png";
+      if (u.posts) {
+        const res = await fetch(`${LOCAL_URL}/post/get/${u.posts[0]}`)
+      }
+
       const mapped: FeedUser = {
         id: userId,
         username: u.username ?? `user_${String(userId).slice(-4)}`,

@@ -21,8 +21,12 @@ class MyApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       title: 'Be4Real',
       theme: ThemeData(
-        // This is the theme of your application.
-
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          background: Colors.white, 
+          surface: Colors.white, 
+          surfaceTint: Colors.transparent, 
+        ),
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-const SERVER_URL = "http://bef4real.life/api";
-const LOCAL_URL = "http://localhost:3000";
+const SERVER_URL = "http://be4real.life/api";
+const LOCAL_URL = SERVER_URL// "http://localhost:3000";
 
 interface PostProps {
   postId: string;
@@ -80,7 +80,7 @@ function Post({
               <div className="text-xs text-gray-500">{data.time} ago</div>
             </div>
           </button>
-          <div className="text-sm text-gray-400 px-4 hidden sm:block">
+          <div className="text-sm text-gray-400 px-4 shrink-0 hidden sm:block">
             {data.time} ago
           </div>
         </div>

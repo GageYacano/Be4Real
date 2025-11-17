@@ -2,7 +2,27 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'login.dart';
+
+// Global cache so public profiles load instantly next time
+final Map<String, _CachedPublicProfile> _publicProfileCache = {};
+
+class _CachedPublicProfile {
+  final String username;
+  final int reactions;
+  final int postCount;
+  final List<String> images;
+  final String? avatar; // can be base64 OR url
+
+  _CachedPublicProfile({
+    required this.username,
+    required this.reactions,
+    required this.postCount,
+    required this.images,
+    required this.avatar,
+  });
+}
 
 class PublicProfilePage extends StatefulWidget {
   final String userId;
@@ -18,18 +38,33 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   int reactions = 0;
   int postCount = 0;
   List<String> postImages = [];
-  String? backendProfileImg;
+  String? backendProfileImg; // stores either first post img (base64) OR profileImg url
 
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchPublicProfile();
+
+    // If cached → show instantly, then refresh in background
+    if (_publicProfileCache.containsKey(widget.userId)) {
+      final c = _publicProfileCache[widget.userId]!;
+      username = c.username;
+      reactions = c.reactions;
+      postCount = c.postCount;
+      postImages = c.images;
+      backendProfileImg = c.avatar;
+      loading = false;
+
+      // silent refresh
+      fetchPublicProfile();
+    } else {
+      fetchPublicProfile();
+    }
   }
 
   // ---------------------------------------------------------
-  // Fetch Public Profile
+  // Fetch Public Profile (FAST + correct avatar logic)
   // ---------------------------------------------------------
   Future<void> fetchPublicProfile() async {
     try {
@@ -46,32 +81,61 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       final json = jsonDecode(res.body);
       final user = json["data"]["user"];
 
-      username = user["username"] ?? "Unknown";
-      reactions = user["reactions"] ?? 0;
-      backendProfileImg = user["profileImg"];
+      final newUsername = user["username"] ?? "Unknown";
+      final newReactions = user["reactions"] ?? 0;
+      final profileImgFromBackend = user["profileImg"];
       final rawPosts = user["posts"] as List? ?? [];
-      postCount = rawPosts.length;
+      final newPostCount = rawPosts.length;
 
-      // Fetch Post Images
-      List<String> imgs = [];
+      // ---- FAST POST IMAGE FETCHING USING PARALLEL CALLS ----
+      final pids = rawPosts.map(normalizeId).toList();
 
-      for (final p in rawPosts) {
-        final pid = normalizeId(p);
-
-        final postRes = await http.get(
+      final futures = pids.map((pid) async {
+        final r = await http.get(
           Uri.parse("http://be4real.life/api/post/get/$pid"),
           headers: {"Authorization": "Bearer $token"},
         );
-
-        if (postRes.statusCode == 200) {
-          final postJson = jsonDecode(postRes.body);
-          final img = postJson["data"]["post"]["imgData"];
-          if (img is String && img.isNotEmpty) imgs.add(img);
+        if (r.statusCode == 200) {
+          final j = jsonDecode(r.body);
+          final img = j["data"]["post"]["imgData"];
+          if (img is String && img.isNotEmpty) return img;
         }
+        return null;
+      }).toList();
+
+      final results = await Future.wait(futures);
+      final newImages = results.whereType<String>().toList();
+
+      // ✅ Avatar logic:
+      // 1) If any posts exist → first post image (base64)
+      // 2) Else if profileImg exists → use that (url/string)
+      // 3) Else → null → dicebear fallback
+      String? avatarToStore;
+      if (newImages.isNotEmpty) {
+        avatarToStore = newImages.first; // base64 image
+      } else if (profileImgFromBackend != null &&
+          profileImgFromBackend.toString().isNotEmpty &&
+          profileImgFromBackend.toString() != "null") {
+        avatarToStore = profileImgFromBackend.toString(); // backend url
+      } else {
+        avatarToStore = null;
       }
 
+      // update cache
+      _publicProfileCache[widget.userId] = _CachedPublicProfile(
+        username: newUsername,
+        reactions: newReactions,
+        postCount: newPostCount,
+        images: newImages,
+        avatar: avatarToStore,
+      );
+
       setState(() {
-        postImages = imgs;
+        username = newUsername;
+        reactions = newReactions;
+        postCount = newPostCount;
+        postImages = newImages;
+        backendProfileImg = avatarToStore;
         loading = false;
       });
     } catch (_) {
@@ -82,7 +146,6 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   // ---------------------------------------------------------
   // Utilities
   // ---------------------------------------------------------
-
   String normalizeId(dynamic v) {
     if (v is String) return v;
     if (v is Map && v.containsKey("\$oid")) return v["\$oid"];
@@ -95,15 +158,26 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   }
 
   ImageProvider getAvatarImage() {
+    // If we have something stored, decide whether it's base64 or URL
     if (backendProfileImg != null &&
         backendProfileImg!.isNotEmpty &&
-        backendProfileImg != "null" &&
-        !backendProfileImg!.contains("default")) {
-      return NetworkImage(backendProfileImg!);
+        backendProfileImg != "null") {
+      // If it's clearly a URL → use NetworkImage
+      if (backendProfileImg!.startsWith("http")) {
+        return NetworkImage(backendProfileImg!);
+      }
+      // Otherwise treat as base64 image
+      try {
+        return MemoryImage(base64Decode(cleanBase64(backendProfileImg!)));
+      } catch (_) {
+        // fall through to dicebear if decoding fails
+      }
     }
 
+    // Fallback: dicebear avatar based on username
     return NetworkImage(
-        "https://api.dicebear.com/7.x/avataaars/png?seed=$username&size=128");
+      "https://api.dicebear.com/7.x/avataaars/png?seed=$username&size=128",
+    );
   }
 
   Future<void> logout() async {
@@ -141,13 +215,9 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-
-          // ⭐⭐ Added RefreshIndicator ⭐⭐
           : RefreshIndicator(
               color: Colors.black,
-              onRefresh: () async {
-                await fetchPublicProfile();
-              },
+              onRefresh: fetchPublicProfile,
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
@@ -163,7 +233,9 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                         Text(
                           username,
                           style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold),
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Row(
