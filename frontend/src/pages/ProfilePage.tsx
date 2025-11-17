@@ -227,7 +227,7 @@ export function ProfilePage({
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-400">
                       <span className="text-xs uppercase tracking-wide">
-                        {stats.reactions} reactions
+                        <span className="font-semibold text-white">{stats.reactions}</span> reactions
                       </span>
                     </div>
                   </div>
