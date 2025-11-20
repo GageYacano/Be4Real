@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
   bool loading = true;
   String? error;
 
-  // ⭐ Prevent constant reloading on tab switch
+  // Prevent constant reloading on tab switch
   bool feedLoadedOnce = false;
 
   // pagination
@@ -94,36 +94,35 @@ class _HomePageState extends State<HomePage> {
   // CACHED fetchUserInfo
   // -------------------------------------------------------------
   Future<Map<String, String>> fetchUserInfo(String uid) async {
-  // If cached, return cached map
-  if (_userInfoCache.containsKey(uid)) {
-    return _userInfoCache[uid]!;
+    // If cached, return cached map
+    if (_userInfoCache.containsKey(uid)) {
+      return _userInfoCache[uid]!;
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse("$SERVER/user/get/$uid"),
+        headers: {"Authorization": "Bearer ${widget.authToken}"},
+      );
+
+      final json = jsonDecode(res.body);
+      final u = json["data"]["user"];
+
+      // FIX: Explicitly typed Map<String, String>
+      final Map<String, String> map = {
+        "username": (u["username"] ?? "Unknown").toString(),
+        "profileImg": (u["profileImg"] ?? "").toString(),
+      };
+
+      _userInfoCache[uid] = map; // VALID
+      return map; // VALID
+    } catch (e) {
+      return {
+        "username": "Unknown",
+        "profileImg": "",
+      };
+    }
   }
-
-  try {
-    final res = await http.get(
-      Uri.parse("$SERVER/user/get/$uid"),
-      headers: {"Authorization": "Bearer ${widget.authToken}"},
-    );
-
-    final json = jsonDecode(res.body);
-    final u = json["data"]["user"];
-
-    // ⭐ FIX: Explicitly typed Map<String, String>
-    final Map<String, String> map = {
-      "username": (u["username"] ?? "Unknown").toString(),
-      "profileImg": (u["profileImg"] ?? "").toString(),
-    };
-
-    _userInfoCache[uid] = map;     // VALID
-    return map;                    // VALID
-  } catch (e) {
-    return {
-      "username": "Unknown",
-      "profileImg": "",
-    };
-  }
-}
-
 
   // -------------------------------------------------------------
   // PARSE POSTS
@@ -536,7 +535,7 @@ class _HomePageState extends State<HomePage> {
         onTap: (i) async {
           setState(() => index = i);
 
-          // ⭐ Do NOT reload feed on tab switch
+          // Do NOT reload feed on tab switch
           if (i == 1) {
             _profileKey.currentState?.refreshProfile();
           }
